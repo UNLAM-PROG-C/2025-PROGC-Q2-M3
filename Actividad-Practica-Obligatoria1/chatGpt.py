@@ -43,6 +43,6 @@ if __name__ == "__main__":
     matrix_b: Matrix = [[7, 8], [9, 10], [11, 12]]
 
     result_matrix: Matrix = multiply_matrices(matrix_a, matrix_b)
-    print("Result Matrix:")
+    print("Result")
     for row in result_matrix:
         print(row)
