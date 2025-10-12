@@ -20,14 +20,13 @@ class Ship:
         return False
 
 class GameBoard:
-    def __init__(self, x, y, cell_size=45):
+    def __init__(self, x, y, board_size=450):
         self.x = x
         self.y = y
         self.grid_size = 10
-        fixed_board_size = 450
-        self.width = fixed_board_size
-        self.height = fixed_board_size
-        self.cell_size = fixed_board_size // self.grid_size
+        self.width = board_size
+        self.height = board_size
+        self.cell_size = board_size // self.grid_size
         
         self.grid = [['empty' for _ in range(self.grid_size)] for _ in range(self.grid_size)]
         self.ships = []
@@ -86,20 +85,28 @@ class GameBoard:
                                   cell_y + self.cell_size // 2), 
                                  self.cell_size // 4)
         
-        coord_font = pygame.font.Font(None, 28)
+        coord_font_size = max(20, min(32, self.cell_size // 2))
+        coord_font = pygame.font.Font(None, coord_font_size)
+        coord_bg_width = max(25, self.cell_size // 3)
+        coord_bg_height = max(20, self.cell_size // 4)
+        
         for i in range(self.grid_size):
+            # Números a la izquierda
             num_text = coord_font.render(str(i + 1), True, (255, 255, 255))
-            num_bg = pygame.Rect(self.x - 30, self.y + i * self.cell_size + 5, 25, 20)
+            num_bg = pygame.Rect(self.x - coord_bg_width - 8, self.y + i * self.cell_size + (self.cell_size - coord_bg_height) // 2, coord_bg_width, coord_bg_height)
             pygame.draw.rect(screen, (50, 80, 120), num_bg)
             pygame.draw.rect(screen, (255, 255, 255), num_bg, 1)
-            screen.blit(num_text, (self.x - 25, self.y + i * self.cell_size + 8))
+            text_rect = num_text.get_rect(center=num_bg.center)
+            screen.blit(num_text, text_rect)
             
+            # Letras arriba
             letter = chr(ord('A') + i)
             letter_text = coord_font.render(letter, True, (255, 255, 255))
-            letter_bg = pygame.Rect(self.x + i * self.cell_size + 5, self.y - 30, 20, 25)
+            letter_bg = pygame.Rect(self.x + i * self.cell_size + (self.cell_size - coord_bg_width) // 2, self.y - coord_bg_height - 8, coord_bg_width, coord_bg_height)
             pygame.draw.rect(screen, (50, 80, 120), letter_bg)
             pygame.draw.rect(screen, (255, 255, 255), letter_bg, 1)
-            screen.blit(letter_text, (self.x + i * self.cell_size + 10, self.y - 25))
+            text_rect = letter_text.get_rect(center=letter_bg.center)
+            screen.blit(letter_text, text_rect)
     
     def draw_realistic_ship(self, screen, ship):
         if not ship.positions:
@@ -227,11 +234,32 @@ class GameScreen:
         self.height = screen.get_height()
         self.network_manager = network_manager
         
-        margin = 50
+        # Calcular tamaño para los tableros
+        title_space = 80   # Espacio para título principal arriba
+        board_title_space = 60  # Más espacio para títulos fuera de paneles
+        info_space = 150   # Espacio para información abajo
+        available_height = self.height - title_space - board_title_space - info_space
+        available_width = self.width - 160  # Más margen para coordenadas
         
-        self.my_board = GameBoard(margin, 90)
-        board_spacing = 520
-        self.enemy_board = GameBoard(margin + board_spacing, 90)
+        # Separar mucho más los tableros para que no se toquen
+        board_spacing = 150  # Separación mucho mayor
+        max_board_width = (available_width - board_spacing) // 2
+        max_board_height = available_height
+        
+        # Reducir el tamaño un 20% para dar más espacio de separación
+        board_size = int(min(max_board_width, max_board_height) * 0.8)
+        
+        # Centrar los tableros horizontalmente y verticalmente
+        total_width = board_size * 2 + board_spacing
+        start_x = (self.width - total_width) // 2
+        
+        # Centrar verticalmente considerando todos los espacios
+        total_board_area = board_size + board_title_space  # Tablero + espacio para su título
+        available_vertical = self.height - title_space - info_space
+        board_y = title_space + (available_vertical - total_board_area) // 2 + board_title_space
+        
+        self.my_board = GameBoard(start_x, board_y, board_size)
+        self.enemy_board = GameBoard(start_x + board_size + board_spacing, board_y, board_size)
         
         self.game_phase = "placement"
         self.selected_ship_size = 2
@@ -273,7 +301,7 @@ class GameScreen:
                 if cell and cell not in self.enemy_board.shots:
                     if self.network_manager:
                         self.network_manager.make_shot(cell[0], cell[1])
-                        self.my_turn = False
+                        # No cambiar el turno aquí - esperar respuesta del servidor
     
     def handle_right_click(self, mouse_pos):
         self.ship_horizontal = not self.ship_horizontal
@@ -286,19 +314,24 @@ class GameScreen:
         
         self.draw_board_panels()
         
-        title_font = pygame.font.Font(None, 48)
+        title_font = pygame.font.Font(None, 56)
         title_text = title_font.render("BATALLA NAVAL", True, (255, 255, 255))
-        title_rect = title_text.get_rect(center=(self.width // 2, 30))
+        title_rect = title_text.get_rect(center=(self.width // 2, 35))
         self.screen.blit(title_text, title_rect)
         
-        board_font = pygame.font.Font(None, 32)
+        board_font = pygame.font.Font(None, 42)
+        
+        # Posicionar títulos fuera del recuadro, con espacio de separación
+        title_spacing = 15  # Espacio entre título y panel del tablero
         
         my_title = board_font.render("MI FLOTA", True, (255, 255, 255))
-        my_title_rect = my_title.get_rect(center=(self.my_board.x + self.my_board.width // 2, self.my_board.y - 15))
+        my_panel_top = self.my_board.y - 40 - 15  # panel_padding + coord_space desde draw_board_panels
+        my_title_rect = my_title.get_rect(center=(self.my_board.x + self.my_board.width // 2, my_panel_top - title_spacing))
         self.screen.blit(my_title, my_title_rect)
         
         enemy_title = board_font.render("ENEMIGO", True, (255, 255, 255))
-        enemy_title_rect = enemy_title.get_rect(center=(self.enemy_board.x + self.enemy_board.width // 2, self.enemy_board.y - 15))
+        enemy_panel_top = self.enemy_board.y - 40 - 15  # panel_padding + coord_space desde draw_board_panels
+        enemy_title_rect = enemy_title.get_rect(center=(self.enemy_board.x + self.enemy_board.width // 2, enemy_panel_top - title_spacing))
         self.screen.blit(enemy_title, enemy_title_rect)
         
         self.my_board.draw(self.screen, show_ships=True)
@@ -312,7 +345,9 @@ class GameScreen:
         
         self.draw_info_panel()
         
-        info_font = pygame.font.Font(None, 24)
+        # Fuentes más grandes para mejor legibilidad
+        main_info_font = pygame.font.Font(None, 32)
+        secondary_info_font = pygame.font.Font(None, 28)
         
         if self.game_phase == "placement":
             if self.current_ship_index < len(self.ships_to_place):
@@ -331,16 +366,18 @@ class GameScreen:
         else:
             status_text = "Preparando juego..."
         
-        status_surface = info_font.render(status_text, True, (255, 255, 255))
-        status_rect = status_surface.get_rect(center=(self.width // 2, self.height - 60))
+        # Texto principal centrado en el panel
+        status_surface = main_info_font.render(status_text, True, (255, 255, 255))
+        status_rect = status_surface.get_rect(center=(self.width // 2, self.height - 75))
         self.screen.blit(status_surface, status_rect)
         
+        # Información adicional
         if self.game_phase == "placement":
             remaining_ships = self.ships_to_place[self.current_ship_index:]
             if remaining_ships:
                 ships_text = f"Barcos restantes: {remaining_ships}"
-                ships_surface = info_font.render(ships_text, True, (200, 200, 200))
-                ships_rect = ships_surface.get_rect(center=(self.width // 2, self.height - 30))
+                ships_surface = secondary_info_font.render(ships_text, True, (200, 220, 255))
+                ships_rect = ships_surface.get_rect(center=(self.width // 2, self.height - 45))
                 self.screen.blit(ships_surface, ships_rect)
     
     def draw_ocean_background(self):
@@ -353,22 +390,24 @@ class GameScreen:
             pygame.draw.line(self.screen, color, (0, y), (self.width, y))
     
     def draw_board_panels(self):
-        panel_padding = 20
+        panel_padding = 15
         panel_color = (0, 0, 0, 100)
         border_color = (255, 255, 255, 150)
         
+        coord_space = 40  # Espacio para las coordenadas
+        
         my_panel = pygame.Rect(
-            self.my_board.x - panel_padding,
-            self.my_board.y - panel_padding - 30,
-            self.my_board.width + panel_padding * 2,
-            self.my_board.height + panel_padding * 2 + 30
+            self.my_board.x - panel_padding - coord_space,
+            self.my_board.y - panel_padding - coord_space,
+            self.my_board.width + panel_padding * 2 + coord_space * 2,
+            self.my_board.height + panel_padding * 2 + coord_space * 2
         )
         
         enemy_panel = pygame.Rect(
-            self.enemy_board.x - panel_padding,
-            self.enemy_board.y - panel_padding - 30,
-            self.enemy_board.width + panel_padding * 2,
-            self.enemy_board.height + panel_padding * 2 + 30
+            self.enemy_board.x - panel_padding - coord_space,
+            self.enemy_board.y - panel_padding - coord_space,
+            self.enemy_board.width + panel_padding * 2 + coord_space * 2,
+            self.enemy_board.height + panel_padding * 2 + coord_space * 2
         )
         
         my_panel_surface = pygame.Surface((my_panel.width, my_panel.height))
@@ -386,16 +425,16 @@ class GameScreen:
         pygame.draw.rect(self.screen, (220, 20, 60), enemy_panel, 3)
     
     def draw_info_panel(self):
-        panel_height = 120
-        panel_y = self.height - panel_height - 10
+        panel_height = 110
+        panel_y = self.height - panel_height - 15
         
-        info_panel = pygame.Rect(50, panel_y, self.width - 100, panel_height)
+        info_panel = pygame.Rect(60, panel_y, self.width - 120, panel_height)
         info_surface = pygame.Surface((info_panel.width, info_panel.height))
-        info_surface.set_alpha(120)
-        info_surface.fill((20, 40, 80))
+        info_surface.set_alpha(130)
+        info_surface.fill((25, 45, 85))
         
         self.screen.blit(info_surface, (info_panel.x, info_panel.y))
-        pygame.draw.rect(self.screen, (100, 149, 237), info_panel, 2)
+        pygame.draw.rect(self.screen, (120, 160, 255), info_panel, 3)
     
     def draw_ship_preview_realistic(self, x, y):
         ship_size = self.ships_to_place[self.current_ship_index]
@@ -415,7 +454,7 @@ class GameScreen:
         preview_surface.set_alpha(120)
         preview_surface.fill((0, 0, 0, 0))
         
-        temp_board = GameBoard(self.my_board.x, self.my_board.y, self.my_board.cell_size)
+        temp_board = GameBoard(self.my_board.x, self.my_board.y, self.my_board.width)
         temp_board.ships = [temp_ship]
         temp_board.colors = self.my_board.colors.copy()
         
@@ -443,8 +482,18 @@ class GameScreen:
         shooter = data.get('shooter')
         
         if shooter == self.network_manager.player_id:
+            # Registrar el disparo en el tablero enemigo
             self.enemy_board.shots[(x, y)] = result
+            
+            # Solo pierdo el turno si es miss
+            if result == 'miss':
+                self.my_turn = False
+            # Si es hit o sunk, mantengo el turno para seguir disparando
+            
         else:
+            # El disparo fue del oponente hacia mi tablero
+            # Registrar el impacto en mi tablero si es necesario
+            # El servidor ya maneja la lógica de turno, solo actualizar UI
             pass
     
     def set_my_turn(self, is_my_turn):

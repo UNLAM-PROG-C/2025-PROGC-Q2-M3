@@ -8,9 +8,24 @@ from network import NetworkManager
 class BattleshipClient:
     def __init__(self):
         pygame.init()
-        self.width = 1200
-        self.height = 800
-        self.screen = pygame.display.set_mode((self.width, self.height))
+        
+        # Definir tamaño mínimo de ventana para que los barcos se vean correctamente
+        self.min_width = 1200
+        self.min_height = 800
+        
+        # Obtener el tamaño de la pantalla
+        info = pygame.display.Info()
+        screen_width = info.current_w
+        screen_height = info.current_h - 40  # Restar espacio para la barra de tareas
+        
+        # Asegurar que el tamaño inicial respete el mínimo
+        initial_width = max(screen_width, self.min_width)
+        initial_height = max(screen_height, self.min_height)
+        
+        # Crear ventana redimensionable con todos los controles (minimizar, restaurar/maximizar, cerrar)
+        self.screen = pygame.display.set_mode((initial_width, initial_height), pygame.RESIZABLE)
+        self.width = self.screen.get_width()
+        self.height = self.screen.get_height()
         pygame.display.set_caption("Batalla Naval - Cliente")
         self.clock = pygame.time.Clock()
         
@@ -34,6 +49,52 @@ class BattleshipClient:
             for event in events:
                 if event.type == pygame.QUIT:
                     self.running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.running = False
+                elif event.type == pygame.VIDEORESIZE:
+                    # Aplicar tamaño mínimo para evitar que los barcos se vean mal
+                    new_width = max(event.w, self.min_width)
+                    new_height = max(event.h, self.min_height)
+                    
+                    # Actualizar dimensiones cuando se redimensiona la ventana
+                    self.width = new_width
+                    self.height = new_height
+                    self.screen = pygame.display.set_mode((self.width, self.height), pygame.RESIZABLE)
+                    
+                    # Preservar el estado del juego antes de recrear las pantallas
+                    if hasattr(self, 'game_screen') and self.current_state == "game":
+                        # Guardar el estado actual del juego
+                        saved_game_state = {
+                            'game_phase': self.game_screen.game_phase,
+                            'current_ship_index': self.game_screen.current_ship_index,
+                            'ship_horizontal': self.game_screen.ship_horizontal,
+                            'my_turn': self.game_screen.my_turn,
+                            'my_ships': self.game_screen.my_board.ships.copy() if hasattr(self.game_screen, 'my_board') else [],
+                            'enemy_shots': self.game_screen.enemy_board.shots.copy() if hasattr(self.game_screen, 'enemy_board') else {}
+                        }
+                        
+                        # Recrear la pantalla de juego con las nuevas dimensiones
+                        self.game_screen = GameScreen(self.screen, self.network_manager)
+                        
+                        # Restaurar el estado del juego
+                        self.game_screen.game_phase = saved_game_state['game_phase']
+                        self.game_screen.current_ship_index = saved_game_state['current_ship_index']
+                        self.game_screen.ship_horizontal = saved_game_state['ship_horizontal']
+                        self.game_screen.my_turn = saved_game_state['my_turn']
+                        
+                        # Restaurar los barcos colocados
+                        self.game_screen.my_board.ships = saved_game_state['my_ships']
+                        
+                        # Restaurar los disparos del enemigo
+                        self.game_screen.enemy_board.shots = saved_game_state['enemy_shots']
+                    else:
+                        # Si no estamos en el juego, recrear normalmente
+                        self.game_screen = GameScreen(self.screen, self.network_manager)
+                    
+                    # Actualizar el menú
+                    self.menu_screen = MenuScreen(self.screen)
+                    self.setup_network_callbacks()
                     
                 # Manejar eventos según el estado actual
                 if self.current_state == "menu":

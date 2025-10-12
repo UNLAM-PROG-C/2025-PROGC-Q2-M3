@@ -286,10 +286,11 @@ class BattleshipServer:
         if opponent.all_ships_sunk():
             await self.end_game(shooter_id)
         else:
-            # Cambiar turno solo si fue miss
+            # Cambiar turno solo si fue miss, si fue hit o sunk mantiene el turno
             if result == 'miss':
                 self.current_turn = opponent_id
-                await self.broadcast_game_state()
+            # Enviar actualización del estado del juego siempre para mantener sincronizado
+            await self.broadcast_game_state()
     
     async def handle_start_game(self):
         """Iniciar el juego cuando cualquier jugador lo solicite"""
