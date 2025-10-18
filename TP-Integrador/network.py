@@ -50,7 +50,7 @@ class NetworkManager:
     def send_message(self, message_type, data=None):
         """Enviar mensaje al servidor"""
         if not self.connected:
-            print("❌ No conectado al servidor")
+            print(" No conectado al servidor")
             return False
             
         try:

@@ -5,6 +5,72 @@ from menu import MenuScreen
 from game import GameScreen
 from network import NetworkManager
 
+class GameOverScreen:
+    def __init__(self, screen, is_winner=False):
+        self.screen = screen
+        self.width = screen.get_width()
+        self.height = screen.get_height()
+        self.is_winner = is_winner
+        
+        # Configurar botón
+        button_width = 200
+        button_height = 60
+        self.accept_button = {
+            'rect': pygame.Rect(self.width // 2 - button_width // 2, self.height // 2 + 100, button_width, button_height),
+            'text': 'ACEPTAR',
+            'color': (70, 130, 180),
+            'hover_color': (100, 149, 237),
+            'text_color': (255, 255, 255)
+        }
+        
+        self.font_large = pygame.font.Font(None, 96)
+        self.font_medium = pygame.font.Font(None, 48)
+    
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:  # Click izquierdo
+                mouse_pos = pygame.mouse.get_pos()
+                if self.accept_button['rect'].collidepoint(mouse_pos):
+                    return "accept"
+        return None
+    
+    def draw(self):
+        # Fondo semi-transparente
+        overlay = pygame.Surface((self.width, self.height))
+        overlay.set_alpha(180)
+        overlay.fill((0, 0, 0))
+        self.screen.blit(overlay, (0, 0))
+        
+        # Texto principal
+        if self.is_winner:
+            main_text = "GANASTE"
+            text_color = (0, 255, 0)  # Verde
+        else:
+            main_text = "PERDISTE"
+            text_color = (255, 0, 0)  # Rojo
+        
+        # Dibujar texto principal
+        text_surface = self.font_large.render(main_text, True, text_color)
+        text_rect = text_surface.get_rect(center=(self.width // 2, self.height // 2 - 50))
+        
+        # Sombra del texto
+        shadow_surface = self.font_large.render(main_text, True, (0, 0, 0))
+        shadow_rect = shadow_surface.get_rect(center=(self.width // 2 + 3, self.height // 2 - 47))
+        self.screen.blit(shadow_surface, shadow_rect)
+        self.screen.blit(text_surface, text_rect)
+        
+        # Dibujar botón
+        mouse_pos = pygame.mouse.get_pos()
+        button_color = self.accept_button['hover_color'] if self.accept_button['rect'].collidepoint(mouse_pos) else self.accept_button['color']
+        
+        pygame.draw.rect(self.screen, button_color, self.accept_button['rect'])
+        pygame.draw.rect(self.screen, (255, 255, 255), self.accept_button['rect'], 3)
+        
+        # Texto del botón
+        button_text = self.font_medium.render(self.accept_button['text'], True, self.accept_button['text_color'])
+        button_text_rect = button_text.get_rect(center=self.accept_button['rect'].center)
+        self.screen.blit(button_text, button_text_rect)
+
 class BattleshipClient:
     def __init__(self):
         pygame.init()
@@ -13,20 +79,20 @@ class BattleshipClient:
         self.min_width = 1200
         self.min_height = 800
         
-        # Obtener el tamaño de la pantalla
-        info = pygame.display.Info()
-        screen_width = info.current_w
-        screen_height = info.current_h - 40  # Restar espacio para la barra de tareas
+        # Definir tamaño inicial de ventana (no pantalla completa)
+        initial_width = self.min_width
+        initial_height = self.min_height
         
-        # Asegurar que el tamaño inicial respete el mínimo
-        initial_width = max(screen_width, self.min_width)
-        initial_height = max(screen_height, self.min_height)
+        # Establecer el título antes de crear la ventana
+        pygame.display.set_caption("Batalla Naval - Cliente")
         
         # Crear ventana redimensionable con todos los controles (minimizar, restaurar/maximizar, cerrar)
         self.screen = pygame.display.set_mode((initial_width, initial_height), pygame.RESIZABLE)
+        
+        # Forzar la actualización de la ventana para asegurar que la barra de título aparezca
+        pygame.display.flip()
         self.width = self.screen.get_width()
         self.height = self.screen.get_height()
-        pygame.display.set_caption("Batalla Naval - Cliente")
         self.clock = pygame.time.Clock()
         
         # Estados del juego
@@ -39,6 +105,7 @@ class BattleshipClient:
         # Inicializar pantallas
         self.menu_screen = MenuScreen(self.screen)
         self.game_screen = GameScreen(self.screen, self.network_manager)
+        self.game_over_screen = None  # Se creará cuando sea necesario
         
         # Configurar callbacks de red
         self.setup_network_callbacks()
@@ -96,6 +163,11 @@ class BattleshipClient:
                     self.menu_screen = MenuScreen(self.screen)
                     self.setup_network_callbacks()
                     
+                    # Recrear game over screen si existe
+                    if self.game_over_screen is not None:
+                        is_winner = self.game_over_screen.is_winner
+                        self.game_over_screen = GameOverScreen(self.screen, is_winner)
+                    
                 # Manejar eventos según el estado actual
                 if self.current_state == "menu":
                     action = self.menu_screen.handle_event(event)
@@ -112,6 +184,20 @@ class BattleshipClient:
                         
                 elif self.current_state == "game":
                     self.game_screen.handle_event(event)
+                elif self.current_state == "game_over":
+                    action = self.game_over_screen.handle_event(event)
+                    if action == "accept":
+                        # Desconectar del servidor al terminar el juego
+                        if self.network_manager.connected:
+                            self.network_manager.disconnect()
+                            print("Desconectado del servidor después del juego")
+                        
+                        # Resetear estado del menú para mostrar desconectado
+                        self.menu_screen.set_connection_status(False, False)
+                        
+                        # Volver al menú
+                        self.current_state = "menu"
+                        self.game_over_screen = None
             
             # Renderizar según el estado actual
             if self.current_state == "menu":
@@ -120,6 +206,11 @@ class BattleshipClient:
             elif self.current_state == "game":
                 self.game_screen.update()
                 self.game_screen.draw()
+            elif self.current_state == "game_over":
+                # Dibujar el juego de fondo y encima la pantalla de game over
+                self.game_screen.update()
+                self.game_screen.draw()
+                self.game_over_screen.draw()
             
             pygame.display.flip()
             self.clock.tick(60)
@@ -172,8 +263,15 @@ class BattleshipClient:
     def on_game_over(self, data):
         """Callback cuando termina el juego"""
         print(f"Juego terminado: {data}")
-        # Volver al menú después del juego
-        self.current_state = "menu"
+        
+        # Obtener si el jugador ganó o perdió
+        is_winner = data.get('is_winner', False)
+        
+        # Crear pantalla de game over
+        self.game_over_screen = GameOverScreen(self.screen, is_winner)
+        
+        # Cambiar al estado de game over
+        self.current_state = "game_over"
 
 if __name__ == "__main__":
     client = BattleshipClient()

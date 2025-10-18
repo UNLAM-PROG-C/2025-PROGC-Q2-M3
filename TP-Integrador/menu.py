@@ -84,17 +84,6 @@ class MenuScreen:
         else:
             self.screen.fill((30, 30, 60))
         
-        # Dibujar título
-        title_font = pygame.font.Font(None, 72)
-        title_text = title_font.render("BATALLA NAVAL", True, (255, 255, 255))
-        title_rect = title_text.get_rect(center=(self.width // 2, 200))
-        
-        # Sombra del título
-        shadow_text = title_font.render("BATALLA NAVAL", True, (0, 0, 0))
-        shadow_rect = shadow_text.get_rect(center=(self.width // 2 + 3, 203))
-        self.screen.blit(shadow_text, shadow_rect)
-        self.screen.blit(title_text, title_rect)
-        
         # Dibujar botones
         mouse_pos = pygame.mouse.get_pos()
         
@@ -119,7 +108,7 @@ class MenuScreen:
         # Actualizar texto y estado de botones según conexión
         if self.server_connected:
             # Cambiar texto y deshabilitar botón conectar si ya estamos conectados
-            self.connect_button['text'] = 'Conectado ✓'
+            self.connect_button['text'] = 'Conectado'
             self.connect_button['enabled'] = False
             self.connect_button['color'] = (34, 139, 34)  # Verde
             
