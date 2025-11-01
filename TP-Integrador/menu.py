@@ -13,6 +13,7 @@ class MenuScreen:
         # Estados del menú
         self.server_connected = False
         self.players_ready = False
+        self.music_muted = False
         
         # Definir botones
         self.setup_buttons()
@@ -55,8 +56,19 @@ class MenuScreen:
             'text_color': (255, 255, 255)
         }
         
+        # Botón de mute (esquina superior derecha)
+        self.mute_button = {
+            'rect': pygame.Rect(self.width - 120, 20, 100, 40),
+            'text': '🔊 MÚSICA',
+            'text_muted': '🔇 SILENCIO',
+            'color': (70, 70, 70),
+            'hover_color': (100, 100, 100),
+            'text_color': (255, 255, 255)
+        }
+        
         self.buttons = [self.connect_button, self.start_button]
         self.font = pygame.font.Font(None, 36)
+        self.mute_font = pygame.font.Font(None, 24)
         
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -70,6 +82,10 @@ class MenuScreen:
                 # Verificar click en botón iniciar partida
                 if self.start_button['rect'].collidepoint(mouse_pos) and self.start_button['enabled']:
                     return "start_game"
+                
+                # Verificar click en botón mute
+                if self.mute_button['rect'].collidepoint(mouse_pos):
+                    return "toggle_music"
         
         return None
     
@@ -134,6 +150,42 @@ class MenuScreen:
         status_surface = status_font.render(status_text, True, status_color)
         status_rect = status_surface.get_rect(center=(self.width // 2, 620))
         self.screen.blit(status_surface, status_rect)
+        
+        # Dibujar botón de música
+        self.draw_mute_button(mouse_pos)
+    
+    def draw_mute_button(self, mouse_pos):
+        """Dibujar el botón de control de música"""
+        # Determinar color del botón
+        if self.mute_button['rect'].collidepoint(mouse_pos):
+            color = self.mute_button['hover_color']
+        else:
+            color = self.mute_button['color']
+        
+        # Dibujar botón
+        pygame.draw.rect(self.screen, color, self.mute_button['rect'])
+        pygame.draw.rect(self.screen, (255, 255, 255), self.mute_button['rect'], 2)
+        
+        # Determinar texto según estado
+        if self.music_muted:
+            text = self.mute_button['text_muted']
+        else:
+            text = self.mute_button['text']
+        
+        # Dibujar texto del botón
+        text_surface = self.mute_font.render(text, True, self.mute_button['text_color'])
+        text_rect = text_surface.get_rect(center=self.mute_button['rect'].center)
+        self.screen.blit(text_surface, text_rect)
+    
+    def toggle_music_mute(self):
+        """Alternar entre silenciar y reproducir la música"""
+        self.music_muted = not self.music_muted
+        if self.music_muted:
+            pygame.mixer.music.set_volume(0.0)
+            print("🔇 Música silenciada")
+        else:
+            pygame.mixer.music.set_volume(0.5)
+            print("🔊 Música reactivada")
     
     def set_connection_status(self, connected, players_ready=False):
         """Actualizar el estado de conexión desde el cliente principal"""

@@ -75,6 +75,9 @@ class BattleshipClient:
     def __init__(self):
         pygame.init()
         
+        # Inicializar mixer de pygame para audio
+        pygame.mixer.init()
+        
         # Definir tamaño mínimo de ventana para que los barcos se vean correctamente
         self.min_width = 1200
         self.min_height = 800
@@ -102,6 +105,8 @@ class BattleshipClient:
         # Inicializar network manager primero
         self.network_manager = NetworkManager()
         
+
+        
         # Inicializar pantallas
         self.menu_screen = MenuScreen(self.screen)
         self.game_screen = GameScreen(self.screen, self.network_manager)
@@ -110,6 +115,23 @@ class BattleshipClient:
         # Configurar callbacks de red
         self.setup_network_callbacks()
         
+        # Inicializar música de fondo
+        self.init_background_music()
+    
+    def init_background_music(self):
+        """Inicializar y reproducir música de fondo"""
+        try:
+            # Cargar y reproducir la música de fondo en bucle
+            music_path = os.path.join("assets", "sounds", "piratas.mp3")
+            pygame.mixer.music.load(music_path)
+            pygame.mixer.music.set_volume(0.5)  # Volumen al 50%
+            pygame.mixer.music.play(-1)  # -1 significa bucle infinito
+            print("✅ Música de fondo 'piratas.mp3' iniciada")
+        except pygame.error as e:
+            print(f"❌ Error al cargar música de fondo: {e}")
+        except FileNotFoundError:
+            print("❌ No se encontró el archivo piratas.mp3")
+
     def run(self):
         while self.running:
             events = pygame.event.get()
@@ -131,7 +153,7 @@ class BattleshipClient:
                     
                     # Preservar el estado del juego antes de recrear las pantallas
                     if hasattr(self, 'game_screen') and self.current_state == "game":
-                        # Guardar el estado actual del juego
+                        # Guardar el estado actual del juego incluyendo audio
                         saved_game_state = {
                             'game_phase': self.game_screen.game_phase,
                             'current_ship_index': self.game_screen.current_ship_index,
@@ -181,6 +203,9 @@ class BattleshipClient:
                         # Solicitar inicio del juego al servidor
                         if self.network_manager.start_game():
                             print("Solicitando inicio de partida...")
+                    elif action == "toggle_music":
+                        # Alternar música
+                        self.menu_screen.toggle_music_mute()
                         
                 elif self.current_state == "game":
                     self.game_screen.handle_event(event)
@@ -194,6 +219,13 @@ class BattleshipClient:
                         
                         # Resetear estado del menú para mostrar desconectado
                         self.menu_screen.set_connection_status(False, False)
+                        
+                        # Reiniciar música de fondo del menú
+                        self.init_background_music()
+                        
+                        # Restaurar el estado de silencio si estaba activado
+                        if hasattr(self.menu_screen, 'music_muted') and self.menu_screen.music_muted:
+                            pygame.mixer.music.set_volume(0.0)
                         
                         # Volver al menú
                         self.current_state = "menu"
@@ -215,6 +247,9 @@ class BattleshipClient:
             pygame.display.flip()
             self.clock.tick(60)
         
+        # Detener música antes de cerrar
+        pygame.mixer.music.stop()
+        pygame.mixer.quit()
         pygame.quit()
         sys.exit()
     
@@ -237,6 +272,22 @@ class BattleshipClient:
         print(f"🎮 MENSAJE GAME_START RECIBIDO: {data}")
         print("✅ El servidor confirmó el inicio del juego")
         print("🚀 Redirigiendo AMBOS clientes a la pantalla de juego...")
+        
+        # Detener completamente la música del menú
+        pygame.mixer.music.stop()
+        print("🔇 Música del menú detenida")
+        
+        # Cargar y reproducir música de fondo del juego
+        try:
+            game_music_path = os.path.join("assets", "sounds", "background.mp3")
+            pygame.mixer.music.load(game_music_path)
+            pygame.mixer.music.set_volume(0.09)  # Volumen un poco más bajo para el juego
+            pygame.mixer.music.play(-1)  # -1 significa bucle infinito
+            print("🎵 Música de fondo del juego 'background.mp3' iniciada")
+        except pygame.error as e:
+            print(f"❌ Error al cargar música de juego: {e}")
+        except FileNotFoundError:
+            print("❌ No se encontró el archivo background.mp3")
         
         # Cambiar automáticamente a la pantalla de juego (pantalla en blanco inicialmente)
         self.current_state = "game"
@@ -263,6 +314,10 @@ class BattleshipClient:
     def on_game_over(self, data):
         """Callback cuando termina el juego"""
         print(f"Juego terminado: {data}")
+        
+        # Detener música de juego
+        pygame.mixer.music.stop()
+        print("🔇 Música de juego detenida")
         
         # Obtener si el jugador ganó o perdió
         is_winner = data.get('is_winner', False)

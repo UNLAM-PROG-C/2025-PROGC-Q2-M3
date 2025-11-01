@@ -1,4 +1,5 @@
 import pygame
+import os
 
 class Ship:
     def __init__(self, size):
@@ -7,6 +8,18 @@ class Ship:
         self.hits = set()
         self.sunk = False
         self.horizontal = True
+        
+        # Asignar nombre según el tamaño
+        if size == 5:
+            self.name = "Portaaviones"
+        elif size == 4:
+            self.name = "Destructor Acorazado"
+        elif size == 3:
+            self.name = "Barco de Ataque"
+        elif size == 2:
+            self.name = "Lancha Rapida"
+        else:
+            self.name = f"Barco de {size} casillas"
     
     def is_sunk(self):
         return len(self.hits) >= self.size
@@ -79,6 +92,12 @@ class GameBoard:
             if result == 'hit' or result == 'sunk':
                 # Misil rojo para aciertos (hit o sunk)
                 self.draw_missile(screen, center_x, center_y, (220, 20, 60), 'hit')
+                
+                # Si el barco está hundido, mostrar el nombre
+                if result == 'sunk':
+                    sunk_ship_name = self.get_sunk_ship_name(shot_x, shot_y)
+                    if sunk_ship_name:
+                        self.draw_sunk_ship_label(screen, center_x, center_y, sunk_ship_name)
             elif result == 'miss':
                 # Misil blanco para fallos
                 self.draw_missile(screen, center_x, center_y, (255, 255, 255), 'miss')
@@ -158,6 +177,28 @@ class GameBoard:
                 splash_y = center_y + 8 + i * 2
                 pygame.draw.circle(screen, splash_color, 
                                  (center_x, splash_y), splash_radius)
+    
+    def draw_sunk_ship_label(self, screen, center_x, center_y, ship_name):
+        """Dibujar etiqueta del barco hundido"""
+        label_font = pygame.font.Font(None, 20)
+        
+        # Crear texto
+        text_surface = label_font.render(ship_name, True, (255, 255, 0))
+        text_rect = text_surface.get_rect()
+        
+        # Posicionar el texto arriba del misil
+        label_x = center_x - text_rect.width // 2
+        label_y = center_y - 35
+        
+        # Fondo semi-transparente para el texto
+        bg_rect = pygame.Rect(label_x - 3, label_y - 2, text_rect.width + 6, text_rect.height + 4)
+        bg_surface = pygame.Surface((bg_rect.width, bg_rect.height))
+        bg_surface.set_alpha(180)
+        bg_surface.fill((0, 0, 0))
+        
+        screen.blit(bg_surface, (bg_rect.x, bg_rect.y))
+        pygame.draw.rect(screen, (255, 255, 0), bg_rect, 1)
+        screen.blit(text_surface, (label_x, label_y))
     
     def draw_coordinates(self, screen):
         """Dibujar las coordenadas del tablero"""
@@ -433,6 +474,27 @@ class GameBoard:
             self.ships.append(ship)
             return True
         return False
+    
+    def get_ships_status(self):
+        """Obtener el estado de todos los barcos"""
+        ships_status = []
+        for ship in self.ships:
+            status = {
+                'name': ship.name,
+                'size': ship.size,
+                'sunk': ship.sunk,
+                'hits': len(ship.hits),
+                'total_hits_needed': ship.size
+            }
+            ships_status.append(status)
+        return ships_status
+    
+    def get_sunk_ship_name(self, x, y):
+        """Obtener el nombre del barco hundido en la posición dada"""
+        for ship in self.ships:
+            if (x, y) in ship.positions and ship.sunk:
+                return ship.name
+        return None
 
 class GameScreen:
     def __init__(self, screen, network_manager=None):
@@ -476,7 +538,11 @@ class GameScreen:
         self.ships_to_place = [5, 4, 3, 3, 2]
         self.current_ship_index = 0
         
+        # Seguimiento de barcos enemigos hundidos
+        self.enemy_sunk_ships = []
+        
         self.font = pygame.font.Font(None, 32)
+        
         print("✅ Sistema de barcos realistas inicializado")
     
     def handle_event(self, event):
@@ -544,6 +610,10 @@ class GameScreen:
         self.my_board.draw(self.screen, show_ships=True)
         self.enemy_board.draw(self.screen, show_ships=False)
         
+        # Dibujar estado de los barcos si estamos en batalla
+        if self.game_phase == "battle" or self.game_phase == "waiting_for_battle":
+            self.draw_ships_status()
+        
         if self.game_phase == "placement" and self.current_ship_index < len(self.ships_to_place):
             mouse_pos = pygame.mouse.get_pos()
             cell = self.my_board.get_cell_from_mouse(mouse_pos)
@@ -586,6 +656,8 @@ class GameScreen:
                 ships_surface = secondary_info_font.render(ships_text, True, (200, 220, 255))
                 ships_rect = ships_surface.get_rect(center=(self.width // 2, self.height - 45))
                 self.screen.blit(ships_surface, ships_rect)
+        
+
     
     def draw_ocean_background(self):
         for y in range(self.height):
@@ -643,6 +715,103 @@ class GameScreen:
         self.screen.blit(info_surface, (info_panel.x, info_panel.y))
         pygame.draw.rect(self.screen, (120, 160, 255), info_panel, 3)
     
+    def draw_ships_status(self):
+        """Dibujar el estado de los barcos propios y enemigos"""
+        ship_font = pygame.font.Font(None, 24)
+        title_font = pygame.font.Font(None, 28)
+        
+        # Panel izquierdo para barcos propios
+        left_panel_x = 10
+        left_panel_y = self.my_board.y + 50
+        left_panel_width = 200
+        left_panel_height = 300
+        
+        # Panel derecho para barcos enemigos
+        right_panel_x = self.width - 210
+        right_panel_y = self.enemy_board.y + 50
+        right_panel_width = 200
+        right_panel_height = 300
+        
+        # Dibujar panel de mis barcos
+        left_panel = pygame.Rect(left_panel_x, left_panel_y, left_panel_width, left_panel_height)
+        left_surface = pygame.Surface((left_panel_width, left_panel_height))
+        left_surface.set_alpha(180)
+        left_surface.fill((20, 60, 40))
+        self.screen.blit(left_surface, (left_panel_x, left_panel_y))
+        pygame.draw.rect(self.screen, (100, 200, 120), left_panel, 2)
+        
+        # Título panel izquierdo
+        my_title = title_font.render("MIS BARCOS", True, (255, 255, 255))
+        self.screen.blit(my_title, (left_panel_x + 10, left_panel_y + 10))
+        
+        # Estado de mis barcos
+        my_ships = self.my_board.get_ships_status()
+        y_offset = 40
+        for ship in my_ships:
+            if ship['sunk']:
+                color = (255, 100, 100)  # Rojo para hundidos
+                status = "HUNDIDO"
+            else:
+                color = (100, 255, 100)  # Verde para activos
+                status = f"{ship['hits']}/{ship['total_hits_needed']} impactos"
+            
+            ship_text = ship_font.render(f"• {ship['name']}", True, color)
+            status_text = ship_font.render(f"  {status}", True, (200, 200, 200))
+            
+            self.screen.blit(ship_text, (left_panel_x + 10, left_panel_y + y_offset))
+            self.screen.blit(status_text, (left_panel_x + 15, left_panel_y + y_offset + 18))
+            y_offset += 45
+        
+        # Dibujar panel de barcos enemigos
+        right_panel = pygame.Rect(right_panel_x, right_panel_y, right_panel_width, right_panel_height)
+        right_surface = pygame.Surface((right_panel_width, right_panel_height))
+        right_surface.set_alpha(180)
+        right_surface.fill((60, 20, 20))
+        self.screen.blit(right_surface, (right_panel_x, right_panel_y))
+        pygame.draw.rect(self.screen, (200, 100, 100), right_panel, 2)
+        
+        # Título panel derecho
+        enemy_title = title_font.render("BARCOS ENEMIGOS", True, (255, 255, 255))
+        self.screen.blit(enemy_title, (right_panel_x + 10, right_panel_y + 10))
+        
+        # Estado de barcos enemigos (estimado basado en los hundidos conocidos)
+        enemy_ships = self.get_enemy_ships_status()
+        y_offset = 40
+        for ship in enemy_ships:
+            if ship['sunk']:
+                color = (255, 100, 100)  # Rojo para hundidos
+                status = "HUNDIDO"
+            else:
+                color = (255, 200, 100)  # Amarillo para desconocidos
+                status = "ACTIVO"
+            
+            ship_text = ship_font.render(f"• {ship['name']}", True, color)
+            status_text = ship_font.render(f"  {status}", True, (200, 200, 200))
+            
+            self.screen.blit(ship_text, (right_panel_x + 10, right_panel_y + y_offset))
+            self.screen.blit(status_text, (right_panel_x + 15, right_panel_y + y_offset + 18))
+            y_offset += 45
+    
+    def get_enemy_ships_status(self):
+        """Obtener el estado estimado de los barcos enemigos"""
+        # Lista de barcos que debería tener el enemigo
+        expected_ships = [
+            {"name": "Portaaviones", "size": 5, "sunk": False},
+            {"name": "Destructor Acorazado", "size": 4, "sunk": False},
+            {"name": "Barco de Ataque #1", "size": 3, "sunk": False},
+            {"name": "Barco de Ataque #2", "size": 3, "sunk": False},
+            {"name": "Lancha Rapida", "size": 2, "sunk": False}
+        ]
+        
+        # Marcar como hundidos los barcos que están en nuestra lista
+        for sunk_ship_name in self.enemy_sunk_ships:
+            for ship in expected_ships:
+                if ship['name'] == sunk_ship_name or (sunk_ship_name == "Barco de Ataque" and "Barco de Ataque" in ship['name'] and not ship['sunk']):
+                    ship['sunk'] = True
+                    break
+        
+        return expected_ships
+    
     def draw_ship_preview_realistic(self, x, y):
         ship_size = self.ships_to_place[self.current_ship_index]
         
@@ -658,7 +827,7 @@ class GameScreen:
                 temp_ship.positions.append((x, y + i))
         
         preview_surface = pygame.Surface((self.screen.get_width(), self.screen.get_height()))
-        preview_surface.set_alpha(120)
+        preview_surface.set_alpha(60)  # Reducido de 120 a 60 para menos transparencia/oscuridad
         preview_surface.fill((0, 0, 0, 0))
         
         temp_board = GameBoard(self.my_board.x, self.my_board.y, self.my_board.width)
@@ -666,9 +835,9 @@ class GameScreen:
         temp_board.colors = self.my_board.colors.copy()
         
         if can_place:
-            temp_board.colors['ship'] = (0, 200, 0)  # Verde
+            temp_board.colors['ship'] = (0, 255, 0)  # Verde más brillante
         else:
-            temp_board.colors['ship'] = (200, 0, 0)
+            temp_board.colors['ship'] = (255, 50, 50)  # Rojo más brillante
         
         temp_board.draw_realistic_ship(preview_surface, temp_ship)
         
@@ -687,10 +856,17 @@ class GameScreen:
         x, y = data.get('x'), data.get('y')
         result = data.get('result')
         shooter = data.get('shooter')
+        sunk_ship_name = data.get('sunk_ship_name')  # Nombre del barco hundido (si aplica)
         
         if shooter == self.network_manager.player_id:
             # Mi disparo - registrar en el tablero enemigo
             self.enemy_board.shots[(x, y)] = result
+            
+            # Si hundí un barco enemigo, agregarlo a la lista
+            if result == 'sunk' and sunk_ship_name:
+                if sunk_ship_name not in self.enemy_sunk_ships:
+                    self.enemy_sunk_ships.append(sunk_ship_name)
+                    print(f"¡Hundiste el {sunk_ship_name} enemigo!")
             
             # Solo pierdo el turno si es miss
             if result == 'miss':
@@ -707,10 +883,13 @@ class GameScreen:
                 for ship in self.my_board.ships:
                     if (x, y) in ship.positions:
                         ship.hit(x, y)
+                        if ship.sunk:
+                            print(f"¡El enemigo hundió tu {ship.name}!")
                         break
     
     def set_my_turn(self, is_my_turn):
         self.my_turn = is_my_turn
     
     def start_battle_phase(self):
+        print("🚀 Iniciando fase de batalla...")
         self.game_phase = "battle"
