@@ -1,8 +1,3 @@
-"""
-Paquete de clases para el servidor de Batalla Naval
-"""
-
-# Importar Ship desde las clases del juego (ahora es una clase unificada)
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'game', 'classes'))
