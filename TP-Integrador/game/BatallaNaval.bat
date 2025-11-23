@@ -9,14 +9,12 @@ echo ==========================================================
 echo  Verificando Python...
 echo ==========================================================
 
-:: --- Intentar python y python3 ---
 python --version >nul 2>nul
 if %errorlevel%==0 goto :python_ok
 
 python3 --version >nul 2>nul
 if %errorlevel%==0 goto :python_ok
 
-:: --- Forzar instalación si no se detecta ---
 echo Python no encontrado. Descargando Python %PYTHON_VERSION%...
 powershell -Command "Invoke-WebRequest -Uri '%PYTHON_INSTALLER_URL%' -OutFile '%PYTHON_INSTALLER%' -UseBasicParsing"
 
@@ -35,7 +33,6 @@ if %errorlevel% neq 0 (
 del "%PYTHON_INSTALLER%"
 
 :python_ok
-:: --- Mostrar versión instalada ---
 echo Python disponible:
 python --version 2>nul || python3 --version 2>nul
 
@@ -46,9 +43,6 @@ python -m pip install --upgrade pip
 
 echo Instalando Pygame...
 python -m pip install pygame
-
-echo Instalando requests...
-python -m pip install requests
 
 echo ==========================================================
 echo Ejecutando juego...
