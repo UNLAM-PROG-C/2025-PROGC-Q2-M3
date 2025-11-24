@@ -22,7 +22,6 @@ class GameScreen:
         self._initialize_game_state()
         self._initialize_ship_tracking()
         self._setup_fonts()
-        print(GAME_TEXT['REALISTIC_SHIPS_INIT'])
         
     def _initialize_screen_properties(self, screen: pygame.Surface, network_manager: Optional[Any]) -> None:
         self.screen = screen
@@ -113,9 +112,13 @@ class GameScreen:
             self.send_ships_to_server()
             
     def _handle_battle_shot(self, mouse_pos: Tuple[int, int]) -> None:
-        cell = self.enemy_board.get_cell_from_mouse(mouse_pos)
-        if self._can_shoot_at_cell(cell):
-            self.network_manager.make_shot(cell[0], cell[1])
+        try:
+            cell = self.enemy_board.get_cell_from_mouse(mouse_pos)
+            if self._can_shoot_at_cell(cell):
+                self.network_manager.make_shot(cell[0], cell[1])
+                self.my_turn = False  # Desactivar turno inmediatamente
+        except Exception:
+            pass
             
     def _can_shoot_at_cell(self, cell: Optional[Tuple[int, int]]) -> bool:
         return (cell is not None and 
@@ -195,42 +198,7 @@ class GameScreen:
     def _should_show_ship_preview(self) -> bool:
         return (self.game_phase == GAME_PHASE_PLACEMENT and 
                self.current_ship_index < len(self.ships_to_place))
-        return panel_top - TITLE_SPACING
         
-    def _draw_my_board_title(self, board_font: pygame.font.Font, title_y: int) -> None:
-        my_title = board_font.render(GAME_TEXT['MY_FLEET'], True, SHIP_STATUS_COLORS['WHITE'])
-        center_x = self.my_board.x + self.my_board.width // GAME_SCREEN_DIVISION_FACTOR
-        my_title_rect = my_title.get_rect(center=(center_x, title_y))
-        self.screen.blit(my_title, my_title_rect)
-        
-    def _draw_enemy_board_title(self, board_font: pygame.font.Font, title_y: int) -> None:
-        enemy_title = board_font.render(GAME_TEXT['ENEMY'], True, SHIP_STATUS_COLORS['WHITE'])
-        center_x = self.enemy_board.x + self.enemy_board.width // GAME_SCREEN_DIVISION_FACTOR
-        enemy_title_rect = enemy_title.get_rect(center=(center_x, title_y))
-        self.screen.blit(enemy_title, enemy_title_rect)
-        
-    def _draw_game_boards(self) -> None:
-        self.my_board.draw(self.screen, show_ships=True)
-        self.draw_enemy_board_with_sunk_ships()
-        
-        if self._should_show_ships_status():
-            self.draw_ships_status()
-            
-    def _should_show_ships_status(self) -> bool:
-        return (self.game_phase == GAME_PHASE_BATTLE or 
-               self.game_phase == GAME_PHASE_WAITING_BATTLE)
-               
-    def _draw_ship_preview_if_needed(self) -> None:
-        if self._should_show_ship_preview():
-            mouse_pos = pygame.mouse.get_pos()
-            cell = self.my_board.get_cell_from_mouse(mouse_pos)
-            if cell:
-                self.draw_ship_preview_realistic(cell[0], cell[1])
-                
-    def _should_show_ship_preview(self) -> bool:
-        return (self.game_phase == GAME_PHASE_PLACEMENT and 
-               self.current_ship_index < len(self.ships_to_place))
-               
     def _draw_game_info(self) -> None:
         self.draw_info_panel()
         self._draw_status_text()
@@ -475,22 +443,24 @@ class GameScreen:
                 ships_data.append(ship.positions)
             
             self.network_manager.place_ships(ships_data)
-            print("Barcos enviados al servidor")
     
     def handle_shot_result(self, data):
+        if not data:
+            return
+            
         x, y = data.get('x'), data.get('y')
         result = data.get('result')
         shooter = data.get('shooter')
         ship_info = data.get('ship_info')
         
-        print(f"Disparo en ({x}, {y}) por jugador {shooter}: {result}")
+        if x is None or y is None or not result or not shooter:
+            return
         
         sunk_ship_name = None
         if result == 'sunk' and ship_info:
             sunk_ship_name = ship_info.get('name')
             ship_size = ship_info.get('size')
             ship_positions = ship_info.get('positions', [])
-            print(f"Información del barco hundido: {sunk_ship_name} (tamaño: {ship_size})")
 
         if result == 'hit' or result == 'sunk':
             self.play_missile_sound()
@@ -502,7 +472,6 @@ class GameScreen:
             
             if result == 'sunk' and sunk_ship_name and ship_info:
                 self.enemy_sunk_ships.append(sunk_ship_name)
-                print(f"¡HUNDISTE EL {sunk_ship_name.upper()} ENEMIGO!")
 
                 ship_positions = ship_info.get('positions', [])
                 for pos in ship_positions:
@@ -521,14 +490,16 @@ class GameScreen:
                     if (x, y) in ship.positions:
                         ship.hit(x, y)
                         if ship.sunk and result == 'sunk':
-                            print(f"¡El enemigo hundió tu {ship.name}!")
+                            pass
                         break
     
     def set_my_turn(self, is_my_turn):
-        self.my_turn = is_my_turn
+        try:
+            self.my_turn = bool(is_my_turn)
+        except Exception:
+            self.my_turn = False
     
     def start_battle_phase(self):
-        print("Iniciando fase de batalla...")
         self.game_phase = "battle"
     
 
@@ -539,26 +510,22 @@ class GameScreen:
     def play_missile_sound(self):
         try:
             missile_sound_path = os.path.join("assets", "sounds", "misil.mp3")
-            missile_sound = pygame.mixer.Sound(missile_sound_path)
-            missile_sound.set_volume(0.3)
-            missile_sound.play()
-            print("Reproduciendo sonido de impacto de misil")
-        except pygame.error as e:
-            print(f"Error al reproducir sonido de misil: {e}")
-        except FileNotFoundError:
-            print("No se encontró el archivo misil.mp3")
+            if os.path.exists(missile_sound_path):
+                missile_sound = pygame.mixer.Sound(missile_sound_path)
+                missile_sound.set_volume(0.3)
+                missile_sound.play()
+        except (pygame.error, FileNotFoundError, Exception):
+            pass
     
     def play_water_splash_sound(self):
         try:
             splash_sound_path = os.path.join("assets", "sounds", "waterSplash.mp3")
-            splash_sound = pygame.mixer.Sound(splash_sound_path)
-            splash_sound.set_volume(0.25)
-            splash_sound.play()
-            print("Reproduciendo sonido de salpicadura de agua")
-        except pygame.error as e:
-            print(f"Error al reproducir sonido de salpicadura: {e}")
-        except FileNotFoundError:
-            print("No se encontró el archivo waterSplash.mp3")
+            if os.path.exists(splash_sound_path):
+                splash_sound = pygame.mixer.Sound(splash_sound_path)
+                splash_sound.set_volume(0.25)
+                splash_sound.play()
+        except (pygame.error, FileNotFoundError, Exception):
+            pass
 
     def reset_game_state(self):
         self.my_board = GameBoard(self.my_board.x, self.my_board.y, self.my_board.width)
@@ -573,5 +540,3 @@ class GameScreen:
 
         self.enemy_sunk_ships = []
         self.enemy_sunk_ships_info = {}
-
-        print("Estado del juego reseteado para nueva partida")

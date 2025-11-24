@@ -45,7 +45,6 @@ class MenuScreen:
         
     def _handle_asset_loading_error(self) -> None:
         self.menu_image = None
-        print(MENU_TEXT['ASSET_ERROR'])
     
     def setup_buttons(self) -> None:
         self._setup_main_buttons()
@@ -230,8 +229,7 @@ class MenuScreen:
         pygame.mixer.music.set_volume(volume)
         
     def _print_music_status(self) -> None:
-        status = MENU_TEXT['MUSIC_MUTED'] if self.music_muted else MENU_TEXT['MUSIC_UNMUTED']
-        print(status)
+        pass
     
     def set_connection_status(self, connected: bool, players_ready: bool = False) -> None:
         self.server_connected = connected

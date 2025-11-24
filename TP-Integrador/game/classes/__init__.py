@@ -1,6 +1,5 @@
 from .ship import Ship
 from .game_board import GameBoard
-from .connection_dialog import ConnectionDialog
 from .game_screen import GameScreen
 from .menu_screen import MenuScreen
 from .network_manager import NetworkManager
@@ -10,8 +9,7 @@ from .battleship_client import BattleshipClient
 __all__ = [
     'Ship', 
     'GameBoard', 
-    'Colors', 
-    'ConnectionDialog', 
+    'Colors',
     'GameScreen',
     'MenuScreen',
     'NetworkManager',

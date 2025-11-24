@@ -2,6 +2,8 @@ import asyncio
 import sys
 import os
 
+sys.dont_write_bytecode = True
+
 sys.path.append(os.path.join(os.path.dirname(__file__), 'classes'))
 
 from battleship_server import BattleshipServer

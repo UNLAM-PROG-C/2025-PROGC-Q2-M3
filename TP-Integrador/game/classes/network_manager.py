@@ -39,7 +39,6 @@ class NetworkManager:
         try:
             return self._establish_connection()
         except Exception as e:
-            print(f"Error conectando al servidor: {e}")
             self.connected = False
             return False
             
@@ -70,7 +69,6 @@ class NetworkManager:
             
     def send_message(self, message_type: str, data: Optional[Dict[str, Any]] = None) -> bool:
         if not self.connected:
-            print(NETWORK_LOG_MESSAGES['NOT_CONNECTED'])
             return False
             
         try:
@@ -79,7 +77,6 @@ class NetworkManager:
         except (ConnectionResetError, ConnectionAbortedError):
             return self._handle_connection_error()
         except Exception as e:
-            print(f"Error enviando mensaje: {e}")
             return False
             
     def _create_message(self, message_type: str, data: Optional[Dict[str, Any]]) -> str:
@@ -91,13 +88,10 @@ class NetworkManager:
         return json.dumps(message) + JSON_MESSAGE_DELIMITER
         
     def _send_raw_message(self, message_json: str) -> bool:
-        print(f"Enviando mensaje al servidor: {message_json.strip()}")
         self.socket.send(message_json.encode(NETWORK_ENCODING))
-        print(NETWORK_LOG_MESSAGES['SEND_SUCCESS'])
         return True
         
     def _handle_connection_error(self) -> bool:
-        print(NETWORK_LOG_MESSAGES['SERVER_DISCONNECTED'])
         self.connected = False
         if self.on_server_disconnect:
             self.on_server_disconnect()
@@ -136,14 +130,11 @@ class NetworkManager:
             return ""
             
     def _handle_server_disconnection(self) -> None:
-        print(NETWORK_LOG_MESSAGES['NO_DATA_RECEIVED'])
         self.connected = False
         if self.on_server_disconnect:
-            print(NETWORK_LOG_MESSAGES['NOTIFYING_DISCONNECT'])
             self.on_server_disconnect()
             
     def _handle_server_disconnection_error(self) -> None:
-        print(NETWORK_LOG_MESSAGES['CONNECTION_RESET'])
         self.connected = False
         if self.on_server_disconnect:
             self.on_server_disconnect()
@@ -156,16 +147,13 @@ class NetworkManager:
         return buffer
         
     def _handle_complete_message(self, message: str) -> None:
-        print(f"Mensaje recibido del servidor: {message}")
         try:
             parsed_message = json.loads(message)
             self.handle_server_message(parsed_message)
         except json.JSONDecodeError as e:
-            print(f"{NETWORK_LOG_MESSAGES['PARSING_ERROR']}: {e}")
+            pass
             
     def _handle_receive_error(self, error: Exception) -> None:
-        print(f"Error recibiendo mensaje: {error}")
-        
         self.connected = False
         if self.on_server_disconnect:
             self.on_server_disconnect()
@@ -189,23 +177,20 @@ class NetworkManager:
         if handler:
             handler(data)
         else:
-            print(f"Tipo de mensaje desconocido: {message_type}")
+            pass
             
     def _handle_player_connect(self, data: Dict[str, Any]) -> None:
         self.player_id = data.get('player_id')
-        print(f"ID de jugador asignado: {self.player_id}")
         
     def _handle_players_ready(self, data: Dict[str, Any]) -> None:
         if self.on_players_ready:
             self.on_players_ready(data)
             
     def _handle_game_start(self, data: Dict[str, Any]) -> None:
-        print(f"Mensaje GAME_START recibido del servidor: {data}")
         if self.on_game_start:
-            print("Llamando callback on_game_start")
             self.on_game_start(data)
         else:
-            print(NETWORK_LOG_MESSAGES['NO_GAME_START_CALLBACK'])
+            pass
             
     def _handle_game_update(self, data: Dict[str, Any]) -> None:
         if self.on_game_update:
@@ -220,20 +205,16 @@ class NetworkManager:
             self.on_game_over(data)
             
     def _handle_player_disconnect(self, data: Dict[str, Any]) -> None:
-        print(f"MENSAJE PLAYER_DISCONNECT RECIBIDO: {data}")
         disconnected_player = data.get('disconnected_player', NETWORK_LOG_MESSAGES['UNKNOWN_PLAYER'])
         message = data.get('message', NETWORK_LOG_MESSAGES['DEFAULT_DISCONNECT_MESSAGE'])
-        print(f"{message} (Jugador: {disconnected_player})")
         
         if self.on_server_disconnect:
-            print("Llamando callback de desconexión por jugador desconectado")
             self.on_server_disconnect()
         else:
-            print(NETWORK_LOG_MESSAGES['NO_PLAYER_DISCONNECT_CALLBACK'])
+            pass
             
     def _handle_error(self, data: Dict[str, Any]) -> None:
         error_msg = data.get('error', NETWORK_LOG_MESSAGES['DEFAULT_ERROR_MESSAGE'])
-        print(f"Error del servidor: {error_msg}")
     
     def place_ships(self, ship_positions: Dict[str, Any]) -> bool:
         return self.send_message(MESSAGE_TYPES['PLACE_SHIPS'], {'ships': ship_positions})
@@ -242,23 +223,17 @@ class NetworkManager:
         return self.send_message(MESSAGE_TYPES['SHOT'], {'x': x, 'y': y})
     
     def start_game(self) -> bool:
-        self._log_start_game_info()
-        
         if not self._validate_connection():
             return False
             
         result = self.send_message(MESSAGE_TYPES['START_GAME'], {})
-        print(f"Resultado del envío de start_game: {result}")
         return result
         
     def _log_start_game_info(self) -> None:
-        print("INICIANDO: Enviando solicitud de inicio de juego al servidor")
-        print(f"Estado de conexión: {self.connected}")
-        print(f"ID del jugador: {self.player_id}")
+        pass
         
     def _validate_connection(self) -> bool:
         if not self.connected:
-            print(NETWORK_LOG_MESSAGES['NO_CONNECTION'])
             return False
         return True
     

@@ -13,7 +13,6 @@ BACKGROUND_MUSIC_FILE = 'background.mp3'
 from .menu_screen import MenuScreen
 from .game_screen import GameScreen
 from .network_manager import NetworkManager
-from .connection_dialog import ConnectionDialog
 from .game_over_screen import GameOverScreen
 
 class BattleshipClient:
@@ -204,17 +203,11 @@ class BattleshipClient:
             self._handle_toggle_music_action()
     
     def _handle_connect_action(self):
-        connection_dialog = ConnectionDialog(self.screen)
-        connection_config = connection_dialog.run()
-        
-        if connection_config:
-            self._attempt_server_connection(connection_config)
-        else:
-            print("Conexión cancelada por el usuario")
+        self.connect_to_server("127.0.0.1", 8888)
     
     def _attempt_server_connection(self, config):
         host, port = config['host'], config['port']
-        self._display_connection_attempt_info(host, port)
+        return self.connect_to_server(host, port)
     
     def connect_to_server(self, host, port):
         return self.network_manager.connect_to_server(host, port)
@@ -310,7 +303,6 @@ class BattleshipClient:
         self.menu_screen.set_connection_status(connected, players_ready)
     
     def on_game_start(self, data):
-        self._display_game_start_messages(data)
         self._transition_audio_to_game()
         self._reset_game_state_safely("Error reseteando pantalla de juego")
         self.current_state = "game"
@@ -348,8 +340,11 @@ class BattleshipClient:
             self.game_screen.set_my_turn(is_my_turn)
     
     def on_shot_result(self, data):
-        if hasattr(self.game_screen, 'handle_shot_result'):
-            self.game_screen.handle_shot_result(data)
+        try:
+            if hasattr(self.game_screen, 'handle_shot_result') and data:
+                self.game_screen.handle_shot_result(data)
+        except Exception:
+            pass
     
     def on_game_over(self, data):
         self._stop_game_music()
