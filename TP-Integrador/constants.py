@@ -1,8 +1,3 @@
-"""
-Constantes para el juego Batalla Naval
-Archivo para centralizar todos los valores constantes y eliminar números mágicos
-"""
-
 # Importación condicional de pygame para evitar errores en el servidor
 try:
     import pygame
@@ -12,48 +7,48 @@ except ImportError:
     
 import os
 
-# === CONFIGURACIÓN DE RED ===
+DEFAULT_SERVER_HOST = "localhost"
+DEFAULT_SERVER_PORT = 8888
+NETWORK_BUFFER_SIZE = 1024
+try:
+    import pygame
+    PYGAME_AVAILABLE = True
+except ImportError:
+    PYGAME_AVAILABLE = False
+
+import os
+
 DEFAULT_SERVER_HOST = "localhost"
 DEFAULT_SERVER_PORT = 8888
 NETWORK_BUFFER_SIZE = 1024
 NETWORK_TIMEOUT = 1.0
 
-# === CONFIGURACIÓN DE VENTANA Y UI ===
-# Ventana principal
 MIN_WINDOW_WIDTH = 1200
 MIN_WINDOW_HEIGHT = 800
 INITIAL_WINDOW_WIDTH = 1200
 INITIAL_WINDOW_HEIGHT = 800
 
-# Configuración de FPS
 TARGET_FPS = 60
 
-# === CONFIGURACIÓN DE JUEGO ===
-# Tablero de juego
 GRID_SIZE = 10
 BOARD_SIZE_DEFAULT = 450
 CELL_MARGIN = 2
 
-# Configuración de barcos
 SHIP_SIZES = [5, 4, 3, 3, 2]
 SHIP_NAMES = {
     5: "Portaaviones",
-    4: "Destructor Acorazado", 
+    4: "Destructor Acorazado",
     3: "Barco de Ataque",
     2: "Lancha Rapida"
 }
 
-# Estados de celda
 CELL_EMPTY = 0
 CELL_SHIP = 1
 CELL_HIT = 2
 CELL_WATER_HIT = 3
 
-# Máximo de jugadores
 MAX_PLAYERS = 2
 
-# === CONFIGURACIÓN DE UI ===
-# Connection Dialog
 CONNECTION_INPUT_WIDTH = 450
 CONNECTION_INPUT_HEIGHT = 55
 CONNECTION_BUTTON_WIDTH = 200
@@ -62,18 +57,15 @@ MAX_HOST_LENGTH = 50
 MAX_PORT_LENGTH = 5
 CURSOR_BLINK_INTERVAL = 500
 
-# Menu
 MENU_BUTTON_WIDTH = 300
 MENU_BUTTON_HEIGHT = 60
 MUTE_BUTTON_WIDTH = 100
 MUTE_BUTTON_HEIGHT = 40
 MUTE_BUTTON_MARGIN = 20
 
-# Game Over Screen
 GAME_OVER_BUTTON_WIDTH = 200
 GAME_OVER_BUTTON_HEIGHT = 60
 
-# Fuentes
 FONT_SIZE_LARGE = 96
 FONT_SIZE_TITLE = 56
 FONT_SIZE_BOARD_TITLE = 42
@@ -83,7 +75,6 @@ FONT_SIZE_INFO = 28
 FONT_SIZE_SMALL = 24
 FONT_SIZE_COORD = 20
 
-# Espaciado
 PANEL_PADDING = 15
 COORD_SPACE = 40
 TITLE_SPACE = 80
@@ -93,22 +84,16 @@ BOARD_SPACING = 150
 TITLE_SPACING = 15
 WINDOW_MARGINS = 160
 
-# === CONFIGURACIÓN DE AUDIO ===
-# Volúmenes de audio
 MUSIC_VOLUME_MENU = 0.3
 MUSIC_VOLUME_GAME = 0.2
 MISSILE_SOUND_VOLUME = 0.3
 SPLASH_SOUND_VOLUME = 0.25
-MUTED_VOLUME = 0.0
 
-# Configuración del mixer
 MIXER_FREQUENCY = 44100
 MIXER_SIZE = -16
 MIXER_CHANNELS = 2
 MIXER_BUFFER = 1024
 
-# === CONFIGURACIÓN DE COLORES ===
-# Colores principales (RGB)
 COLOR_OCEAN_START = (30, 60, 90)
 COLOR_OCEAN_END = (70, 130, 200)
 COLOR_WATER = (70, 130, 180)
@@ -119,14 +104,12 @@ COLOR_MISS = (255, 255, 255)
 COLOR_GRID = (30, 60, 100)
 COLOR_HOVER = (255, 255, 0, 100)
 
-# Colores de UI
 COLOR_WHITE = (255, 255, 255)
 COLOR_BLACK = (0, 0, 0)
 COLOR_GREEN = (0, 255, 0)
 COLOR_RED = (255, 0, 0)
 COLOR_YELLOW = (255, 255, 0)
 
-# Colores de botones
 COLOR_BUTTON_CONNECT = (70, 130, 180)
 COLOR_BUTTON_CONNECT_HOVER = (100, 149, 237)
 COLOR_BUTTON_CONNECT_ACTIVE = (34, 139, 34)
@@ -138,21 +121,18 @@ COLOR_BUTTON_CANCEL_HOVER = (220, 100, 100)
 COLOR_BUTTON_MUTE = (70, 70, 70)
 COLOR_BUTTON_MUTE_HOVER = (100, 100, 100)
 
-# Colores de paneles
 COLOR_PANEL_MY_BOARD = (20, 40, 60)
 COLOR_PANEL_ENEMY_BOARD = (40, 20, 20)
 COLOR_PANEL_INFO = (25, 45, 85)
 COLOR_PANEL_MY_SHIPS = (20, 60, 40)
 COLOR_PANEL_ENEMY_SHIPS = (60, 20, 20)
 
-# Bordes de paneles
 COLOR_BORDER_MY_BOARD = (100, 149, 237)
 COLOR_BORDER_ENEMY_BOARD = (220, 20, 60)
 COLOR_BORDER_INFO = (120, 160, 255)
 COLOR_BORDER_MY_SHIPS = (100, 200, 120)
 COLOR_BORDER_ENEMY_SHIPS = (200, 100, 100)
 
-# Transparencias
 PANEL_ALPHA = 100
 PANEL_ALPHA_STRONG = 130
 PANEL_ALPHA_INFO = 180
@@ -160,8 +140,6 @@ OVERLAY_ALPHA = 120
 PREVIEW_ALPHA = 60
 GAME_OVER_ALPHA = 180
 
-# === CONFIGURACIÓN DE BARCOS REALISTAS ===
-# Colores de barcos
 SHIP_HULL_COLOR = (45, 55, 65)
 SHIP_DECK_COLOR = (120, 100, 80)
 SHIP_METAL_COLOR = (85, 85, 85)
@@ -171,103 +149,76 @@ SHIP_WINDOW_COLOR = (100, 150, 200)
 SHIP_RADAR_COLOR = (60, 60, 60)
 SHIP_WATER_LINE_COLOR = (65, 75, 85)
 
-# Efectos de impacto
 EXPLOSION_COLORS = [
-    (255, 0, 0),    # Rojo central
-    (255, 100, 0),  # Naranja
-    (255, 200, 0),  # Amarillo
-    (255, 255, 100) # Amarillo claro
+    (255, 0, 0),
+    (255, 100, 0),
+    (255, 200, 0),
+    (255, 255, 100)
 ]
 
 SPLASH_COLORS = [
-    (100, 150, 255),  # Azul claro
-    (150, 200, 255),  # Azul más claro
-    (200, 230, 255)   # Azul muy claro
+    (100, 150, 255),
+    (150, 200, 255),
+    (200, 230, 255)
 ]
 
-# Tamaños de misiles
-MISSILE_SIZE_HIT = 3  # Factor de tamaño para misiles de impacto
-MISSILE_SIZE_MISS = 4  # Factor de tamaño para misiles de fallo
+MISSILE_SIZE_HIT = 3
+MISSILE_SIZE_MISS = 4
 
-# === CONFIGURACIÓN DE LAYOUT ===
-# Ship Status Panels
 SHIP_STATUS_PANEL_WIDTH = 200
 SHIP_STATUS_PANEL_HEIGHT = 300
 SHIP_STATUS_MARGIN = 10
 SHIP_STATUS_Y_OFFSET_START = 40
 SHIP_STATUS_Y_OFFSET_INCREMENT = 45
 
-# Coordenadas del tablero
 COORD_BG_MIN_WIDTH = 25
 COORD_BG_MIN_HEIGHT = 20
 COORD_BG_MARGIN = 8
 
-# === ARCHIVOS DE RECURSOS ===
-# Rutas de imágenes
 IMAGE_MENU_PATH = "assets/images/menu.png"
 
-# Rutas de sonidos
 SOUND_BACKGROUND_MENU = "assets/sounds/piratas.mp3"
 SOUND_BACKGROUND_GAME = "assets/sounds/background.mp3"
 SOUND_MISSILE_HIT = "assets/sounds/misil.mp3"
 SOUND_WATER_SPLASH = "assets/sounds/waterSplash.mp3"
 
-# === CONFIGURACIÓN DE SERVIDOR ===
-# Timeouts y límites
 SERVER_READ_TIMEOUT = 1.0
 SERVER_CLOSE_TIMEOUT = 5
 JSON_DECODE_MAX_RETRIES = 3
 
-# UUID
 UUID_SHORT_LENGTH = 8
 
-# === CONFIGURACIÓN DE MENSAJES ===
-# Límites de caracteres para mensajes
 MESSAGE_TYPE_MAX_LENGTH = 50
 ERROR_MESSAGE_MAX_LENGTH = 200
 PLAYER_ID_LENGTH = 8
 
-# === CONFIGURACIÓN DE LOGGING ===
 LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
 
-# === CONFIGURACIÓN DE POSICIONES DE UI ===
-# Posiciones de menú
 MENU_BUTTON_Y_CONNECT = 400
 MENU_BUTTON_Y_START = 500
 MENU_STATUS_Y = 620
 
-# Posiciones de juego
 GAME_TITLE_Y = 35
 GAME_INFO_Y_OFFSET = 75
 GAME_STATUS_Y_OFFSET = 45
 
-# === CONFIGURACIÓN DE VALIDACIÓN ===
-# Límites de entrada
 MIN_PORT_NUMBER = 1
 MAX_PORT_NUMBER = 65535
 MIN_COORDINATE = 0
 MAX_COORDINATE = 9
 
-# === CONFIGURACIÓN DE ESCALADO ===
-# Factores de escalado para diferentes tamaños de ventana
 BOARD_SIZE_SCALE_FACTOR = 0.8
 MIN_COORD_FONT_SIZE = 20
 MAX_COORD_FONT_SIZE = 32
-COORD_FONT_CELL_RATIO = 2  # cell_size // 2
+COORD_FONT_CELL_RATIO = 2
 
-# === CONFIGURACIÓN DE TIEMPO ===
-# Delays y timeouts
 CONNECTION_CHECK_INTERVAL = 1.0
-ANIMATION_FRAME_TIME = 16  # ~60 FPS
+ANIMATION_FRAME_TIME = 16
 
-# === CONFIGURACIÓN DE DESARROLLO ===
-# Flags de debug
 DEBUG_NETWORK = False
 DEBUG_GAME_STATE = False
 DEBUG_UI = False
 
-# === CONFIGURACIÓN DE SERVIDOR (start_server.py) ===
-# Constantes para eliminación de números mágicos
 BANNER_WIDTH = 80
 FIREWALL_TCP_PROTOCOL = '/tcp'
 DEFAULT_HOST_ALL_INTERFACES = "0.0.0.0"
@@ -279,16 +230,12 @@ ARG_VALIDATION_EXIT_ERROR = 1
 USER_INPUT_YES = 's'
 USER_INPUT_NO = 'n'
 
-# === CONFIGURACIÓN DE PLAYER ===
-# Constantes para la clase Player
 UTF8_ENCODING = 'utf-8'
 JSON_MESSAGE_DELIMITER = '\n'
 SHOT_RESULT_HIT = 'hit'
 SHOT_RESULT_MISS = 'miss'
 SHOT_RESULT_SUNK = 'sunk'
 
-# === CONFIGURACIÓN DE BATTLESHIP SERVER ===
-# Constantes para la clase BattleshipServer
 DEFAULT_HOST_ALL_INTERFACES = "0.0.0.0"
 LOCALHOST_HOST = "localhost"
 CONNECTION_ERROR_MESSAGES = {
@@ -303,8 +250,6 @@ GAME_MESSAGES = {
     'LOSER': 'Perdiste'
 }
 
-# === CONFIGURACIÓN DE SHIP ===
-# Constantes para la clase Ship
 SHIP_POSITION_NOT_HIT_THRESHOLD = 0
 SHIP_INITIAL_HITS = 0
 SHIP_ORIENTATION_HORIZONTAL = True
@@ -314,8 +259,6 @@ ERROR_MESSAGES_SHIP = {
     'MISSING_INIT_PARAMS': "Debe proporcionar 'size' o 'positions' para inicializar el barco"
 }
 
-# === CONFIGURACIÓN DE NETWORK MANAGER ===
-# Constantes para la clase NetworkManager
 THREAD_DAEMON_MODE = True
 NETWORK_ENCODING = 'utf-8'
 MESSAGE_BUFFER_SPLIT_LIMIT = 1
@@ -349,21 +292,17 @@ NETWORK_LOG_MESSAGES = {
     'NO_CONNECTION': "❌ ERROR: No hay conexión al servidor"
 }
 
-# === CONFIGURACIÓN DE MENU_SCREEN ===
-# Constantes para la clase MenuScreen
 MENU_BUTTON_DIVISION_FACTOR = 2
 MENU_BUTTON_BORDER_WIDTH = 3
 MUTE_BUTTON_BORDER_WIDTH = 2
 MENU_FONT_SIZE_DEFAULT = None
 MOUSE_BUTTON_LEFT = 1
 
-# Estados del menú
 MENU_STATE_DISCONNECTED = False
 MENU_STATE_CONNECTED = True
 MENU_STATE_PLAYERS_NOT_READY = False
 MENU_STATE_PLAYERS_READY = True
 
-# Textos del menú
 MENU_TEXT = {
     'CONNECT_DEFAULT': 'Conectar a Servidor',
     'CONNECT_CONNECTED': 'Conectado',
@@ -378,19 +317,15 @@ MENU_TEXT = {
     'ASSET_ERROR': "No se pudo cargar menu.png, usando fondo de color"
 }
 
-# Colores de estado
 MENU_STATUS_COLOR_DISCONNECTED = (255, 100, 100)
 MENU_BACKGROUND_COLOR_DEFAULT = (30, 30, 60)
 
-# Eventos del menú
 MENU_EVENTS = {
     'CONNECT': "connect",
-    'START_GAME': "start_game", 
+    'START_GAME': "start_game",
     'TOGGLE_MUSIC': "toggle_music"
 }
 
-# === CONFIGURACIÓN DE GAME_SCREEN ===
-# Constantes para la clase GameScreen
 GAME_TITLE_SPACE = 80
 GAME_BOARD_TITLE_SPACE = 60
 GAME_INFO_SPACE = 150
@@ -399,18 +334,15 @@ GAME_BOARD_SPACING = 150
 GAME_BOARD_SIZE_REDUCTION_FACTOR = 0.8
 GAME_SCREEN_DIVISION_FACTOR = 2
 
-# Fases del juego
 GAME_PHASE_PLACEMENT = "placement"
 GAME_PHASE_WAITING_BATTLE = "waiting_for_battle"
 GAME_PHASE_BATTLE = "battle"
 
-# Configuración de barcos
 DEFAULT_SHIP_SIZE = 2
 SHIP_HORIZONTAL_DEFAULT = True
 SHIP_VERTICAL = False
 INITIAL_SHIP_INDEX = 0
 
-# Dimensiones de paneles
 PANEL_PADDING = 15
 COORD_SPACE = 40
 TITLE_SPACING = 15
@@ -419,14 +351,12 @@ MY_PANEL_COLOR = (20, 40, 60)
 ENEMY_PANEL_COLOR = (40, 20, 20)
 PANEL_BORDER_WIDTH = 3
 
-# Panel de información
 INFO_PANEL_HEIGHT = 110
 INFO_PANEL_MARGIN = 15
 INFO_PANEL_SIDE_MARGIN = 60
 INFO_PANEL_ALPHA = 130
 INFO_PANEL_COLOR = (25, 45, 85)
 
-# Panel de estado de barcos
 SHIPS_PANEL_WIDTH = 200
 SHIPS_PANEL_HEIGHT = 300
 SHIPS_PANEL_X_MARGIN = 10
@@ -436,28 +366,23 @@ MY_SHIPS_PANEL_COLOR = (20, 60, 40)
 ENEMY_SHIPS_PANEL_COLOR = (60, 20, 20)
 SHIPS_PANEL_BORDER_WIDTH = 2
 
-# Colores del océano (gradiente)
 OCEAN_COLOR_TOP = {'r': 30, 'g': 60, 'b': 90}
 OCEAN_COLOR_BOTTOM = {'r': 70, 'g': 130, 'b': 200}
 
-# Configuración de preview de barcos
 SHIP_PREVIEW_ALPHA = 60
 SHIP_PREVIEW_COLOR_VALID = (0, 255, 0)
 SHIP_PREVIEW_COLOR_INVALID = (255, 50, 50)
 
-# Eventos de mouse y teclado (solo disponibles si pygame está importado)
 MOUSE_LEFT_BUTTON = 1
 MOUSE_RIGHT_BUTTON = 3
 if PYGAME_AVAILABLE:
     KEY_ROTATE = pygame.K_r
 else:
-    KEY_ROTATE = 114  # Valor numérico de pygame.K_r
+    KEY_ROTATE = 114
 
-# Configuración de sonidos
 MISSILE_SOUND_VOLUME = 0.3
 WATER_SPLASH_VOLUME = 0.25
 
-# Textos del juego
 GAME_TEXT = {
     'TITLE': "BATALLA NAVAL",
     'MY_FLEET': "MI FLOTA",
@@ -490,13 +415,11 @@ GAME_TEXT = {
     'REALISTIC_SHIPS_INIT': "✅ Sistema de barcos realistas inicializado"
 }
 
-# Rutas de archivos de sonido
 SOUND_PATHS = {
     'MISSILE': os.path.join("assets", "sounds", "misil.mp3"),
     'WATER_SPLASH': os.path.join("assets", "sounds", "waterSplash.mp3")
 }
 
-# Colores de estado
 SHIP_STATUS_COLORS = {
     'SUNK': (255, 100, 100),
     'ACTIVE': (100, 255, 100),
@@ -506,7 +429,6 @@ SHIP_STATUS_COLORS = {
     'LIGHT_BLUE': (200, 220, 255)
 }
 
-# Configuración de fuentes
 GAME_FONT_SIZES = {
     'TITLE': FONT_SIZE_TITLE,
     'BOARD_TITLE': FONT_SIZE_BOARD_TITLE,
@@ -516,7 +438,6 @@ GAME_FONT_SIZES = {
     'SHIP_TITLE': 28
 }
 
-# Configuración de barcos esperados del enemigo
 EXPECTED_ENEMY_SHIPS = [
     {"name": "Portaaviones", "size": 5, "sunk": False},
     {"name": "Destructor Acorazado", "size": 4, "sunk": False},
@@ -525,7 +446,6 @@ EXPECTED_ENEMY_SHIPS = [
     {"name": "Lancha Rapida", "size": 2, "sunk": False}
 ]
 
-# Resultados de disparos
 SHOT_RESULTS = {
     'HIT': 'hit',
     'MISS': 'miss',
