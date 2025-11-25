@@ -8,7 +8,7 @@ Un juego de Batalla Naval implementado en Python con soporte multijugador en tie
 - Pygame
 - Sistema operativo Windows
 
-## Instalación y Ejecución Local
+## Instalación y Ejecución Local (Para jugar en la misma PC)
 
 ### Paso 1: Clonar el Repositorio
 
@@ -47,37 +47,9 @@ El servidor se iniciará en `localhost:8888` y estará esperando conexiones de l
 
 ### Paso 4: Jugar
 
-1. Necesitas dos instancias del juego ejecutándose para poder jugar (dos ventanas del juego)
-2. Una vez que ambos jugadores estén conectados, pueden hacer clic en "Iniciar Juego"
-3. Coloca tus barcos en el tablero
-4. Cuando ambos jugadores hayan terminado de colocar sus barcos, comenzará la fase de batalla
-5. Haz clic en el tablero enemigo para disparar durante tu turno
-
-## Estructura del Proyecto
-
-```
-TP-Integrador/
-├── server/                 # Código del servidor
-│   ├── server.py          # Archivo principal del servidor
-│   ├── run_server.bat     # Script para ejecutar el servidor
-│   └── classes/           # Clases del servidor
-├── game/                  # Código del cliente/juego
-│   ├── main.py           # Archivo principal del juego
-│   ├── BatallaNaval.bat  # Script para ejecutar el juego
-│   ├── assets/           # Recursos (imágenes, sonidos)
-│   └── classes/          # Clases del juego
-└── README.md             # Este archivo
-```
-
-## Notas Técnicas
-
-- El servidor utiliza programación asíncrona con asyncio para manejar múltiples conexiones
-- La comunicación entre cliente y servidor se realiza mediante mensajes JSON
-- El juego incluye validación automática de posicionamiento de barcos
-- Sistema robusto de detección de desconexiones y reconexiones
-
-## Solución de Problemas
-
-- **Error de conexión**: Asegúrate de que el servidor esté ejecutándose antes de iniciar el cliente
-- **Archivos faltantes**: Verifica que todas las carpetas `assets` contengan los recursos necesarios
-- **Puerto ocupado**: Si el puerto 8888 está en uso, el servidor mostrará un error. Cierra otras aplicaciones que puedan estar usando ese puerto
+1. Unicamente debe existir un servidor corriendo
+2. Necesitas dos instancias del juego ejecutándose para poder jugar (dos ventanas del juego)
+3. Una vez que ambos jugadores estén conectados, pueden hacer clic en "Iniciar Juego"
+4. Coloca tus barcos en el tablero
+5. Cuando ambos jugadores hayan terminado de colocar sus barcos, comenzará la fase de batalla
+6. Haz clic en el tablero enemigo para disparar durante tu turno
