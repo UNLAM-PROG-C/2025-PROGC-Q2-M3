@@ -1,5 +1,9 @@
-import pygame
 import os
+import sys
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+sys.dont_write_bytecode = True
+
+import pygame
 
 MIN_WINDOW_WIDTH = 1200
 MIN_WINDOW_HEIGHT = 800
@@ -209,8 +213,8 @@ MENU_TEXT = {
     'STATUS_DISCONNECTED': "Desconectado del servidor",
     'STATUS_CONNECTING': "Conectado - Esperando segundo jugador...",
     'STATUS_READY': "¡2 jugadores conectados! Listo para iniciar",
-    'MUSIC_MUTED': "🔇 Música silenciada",
-    'MUSIC_UNMUTED': "🔊 Música reactivada",
+    'MUSIC_MUTED': "Música silenciada",
+    'MUSIC_UNMUTED': "Música reactivada",
     'ASSET_ERROR': "No se pudo cargar menu.png, usando fondo de color"
 }
 
@@ -343,7 +347,7 @@ SHOT_RESULTS = {
     'SUNK': 'sunk'
 }
 
-DEFAULT_SERVER_HOST = "localhost"
+DEFAULT_SERVER_HOST = "127.0.0.1"
 DEFAULT_SERVER_PORT = 8888
 NETWORK_BUFFER_SIZE = 1024
 NETWORK_TIMEOUT = 1.0

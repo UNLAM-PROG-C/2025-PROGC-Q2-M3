@@ -44,8 +44,16 @@ python -m pip install --upgrade pip
 echo Instalando Pygame...
 python -m pip install pygame
 
+set /p SERVER_HOST="Ingrese la direccion IP del servidor (default: 127.0.0.1): "
+if "%SERVER_HOST%"=="" set SERVER_HOST=127.0.0.1
+
+set /p SERVER_PORT="Ingrese el puerto del servidor (default: 8888): "
+if "%SERVER_PORT%"=="" set SERVER_PORT=8888
+
 echo ==========================================================
 echo Ejecutando juego...
-py main.py
+echo ==========================================================
+
+py main.py --host %SERVER_HOST% --port %SERVER_PORT% %AUTO_CONNECT_ARG%
 
 endlocal

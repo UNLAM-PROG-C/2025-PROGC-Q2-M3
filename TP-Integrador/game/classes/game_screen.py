@@ -1,6 +1,7 @@
 import pygame
 import os
 import sys
+import asyncio
 from typing import Optional, Dict, Any, List, Tuple
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -15,19 +16,20 @@ from constants import (SHIP_SIZES, FONT_SIZE_NORMAL, COLOR_WHITE, GAME_TITLE_SPA
 from .game_board import GameBoard
 
 class GameScreen:
-    def __init__(self, screen: pygame.Surface, network_manager: Optional[Any] = None) -> None:
-        self._initialize_screen_properties(screen, network_manager)
+    def __init__(self, screen: pygame.Surface, network_manager: Optional[Any] = None, loop: Optional[asyncio.AbstractEventLoop] = None) -> None:
+        self._initialize_screen_properties(screen, network_manager, loop)
         self._calculate_board_dimensions()
         self._setup_game_boards()
         self._initialize_game_state()
         self._initialize_ship_tracking()
         self._setup_fonts()
         
-    def _initialize_screen_properties(self, screen: pygame.Surface, network_manager: Optional[Any]) -> None:
+    def _initialize_screen_properties(self, screen: pygame.Surface, network_manager: Optional[Any], loop: Optional[asyncio.AbstractEventLoop]) -> None:
         self.screen = screen
         self.width = screen.get_width()
         self.height = screen.get_height()
         self.network_manager = network_manager
+        self.loop = loop or asyncio.get_event_loop()
         
     def _calculate_board_dimensions(self) -> None:
         available_height = self.height - GAME_TITLE_SPACE - GAME_BOARD_TITLE_SPACE - GAME_INFO_SPACE
@@ -115,8 +117,9 @@ class GameScreen:
         try:
             cell = self.enemy_board.get_cell_from_mouse(mouse_pos)
             if self._can_shoot_at_cell(cell):
-                self.network_manager.make_shot(cell[0], cell[1])
-                self.my_turn = False  # Desactivar turno inmediatamente
+                if self.loop:
+                    self.loop.create_task(self.network_manager.make_shot(cell[0], cell[1]))
+                self.my_turn = False
         except Exception:
             pass
             
@@ -379,7 +382,7 @@ class GameScreen:
                 color = (255, 200, 100)
                 status = "ACTIVO"
             
-            ship_text = ship_font.render(f"• {ship['name']}", True, color)
+            ship_text = ship_font.render(f" {ship['name']}", True, color)
             status_text = ship_font.render(f"  {status}", True, (200, 200, 200))
             
             self.screen.blit(ship_text, (right_panel_x + 10, right_panel_y + y_offset))
@@ -442,7 +445,8 @@ class GameScreen:
             for ship in self.my_board.ships:
                 ships_data.append(ship.positions)
             
-            self.network_manager.place_ships(ships_data)
+            if self.loop:
+                self.loop.create_task(self.network_manager.place_ships(ships_data))
     
     def handle_shot_result(self, data):
         if not data:
