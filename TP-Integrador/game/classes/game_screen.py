@@ -12,7 +12,13 @@ from constants import (SHIP_SIZES, FONT_SIZE_NORMAL, COLOR_WHITE, GAME_TITLE_SPA
                       PANEL_PADDING, COORD_SPACE, TITLE_SPACING, GAME_PANEL_ALPHA, MY_PANEL_COLOR,
                       ENEMY_PANEL_COLOR, PANEL_BORDER_WIDTH, OCEAN_COLOR_TOP, OCEAN_COLOR_BOTTOM,
                       MOUSE_LEFT_BUTTON, MOUSE_RIGHT_BUTTON, KEY_ROTATE, GAME_TEXT,
-                      SHIP_STATUS_COLORS, GAME_FONT_SIZES)
+                      SHIP_STATUS_COLORS, GAME_FONT_SIZES, SPECIAL_ATTACK_BUTTON_WIDTH, 
+                      SPECIAL_ATTACK_BUTTON_HEIGHT, SPECIAL_ATTACK_BUTTON_MARGIN, 
+                      SPECIAL_ATTACK_BUTTON_Y_OFFSET, COLOR_BUTTON_BOMB, COLOR_BUTTON_BOMB_HOVER,
+                      COLOR_BUTTON_AIR_STRIKE, COLOR_BUTTON_AIR_STRIKE_HOVER, FONT_SIZE_SMALL,
+                      MENU_BUTTON_BORDER_WIDTH, AVAILABLE_BOMBS, AVAILABLE_AIR_STRIKES,
+                      BOMB_ATTACK_AREA_SIZE, BOMB_ATTACK_START_OFFSET, AIR_STRIKE_WIDTH, AIR_STRIKE_CENTER_OFFSET,
+                      GRID_INIT, GRID_SIZE)
 from .game_board import GameBoard
 
 class GameScreen:
@@ -63,6 +69,10 @@ class GameScreen:
         self.my_turn = False
         self.ships_to_place = SHIP_SIZES.copy()
         self.current_ship_index = INITIAL_SHIP_INDEX
+        self.bomb_attack_mode = False
+        self.air_strike_mode = False
+        self.bombs_available = AVAILABLE_BOMBS
+        self.air_strikes_available = AVAILABLE_AIR_STRIKES
         
     def _initialize_ship_tracking(self) -> None:
         self.enemy_sunk_ships: List[str] = []
@@ -70,6 +80,34 @@ class GameScreen:
         
     def _setup_fonts(self) -> None:
         self.font = pygame.font.Font(None, FONT_SIZE_NORMAL)
+        
+    def _setup_special_attack_buttons(self) -> None:
+        self._create_bomb_button()
+        self._create_air_strike_button()
+        
+    def _create_bomb_button(self) -> None:
+        button_x = self._calculate_bomb_button_x()
+        button_y = self._calculate_special_buttons_y()
+        
+        self.bomb_button = {
+            'rect': pygame.Rect(button_x, button_y, SPECIAL_ATTACK_BUTTON_WIDTH, SPECIAL_ATTACK_BUTTON_HEIGHT),
+            'text': GAME_TEXT['BOMB_BUTTON'],
+            'color': COLOR_BUTTON_BOMB,
+            'hover_color': COLOR_BUTTON_BOMB_HOVER,
+            'text_color': COLOR_WHITE
+        }
+        
+    def _create_air_strike_button(self) -> None:
+        button_x = self._calculate_air_strike_button_x()
+        button_y = self._calculate_special_buttons_y()
+        
+        self.air_strike_button = {
+            'rect': pygame.Rect(button_x, button_y, SPECIAL_ATTACK_BUTTON_WIDTH, SPECIAL_ATTACK_BUTTON_HEIGHT),
+            'text': GAME_TEXT['AIR_STRIKE_BUTTON'],
+            'color': COLOR_BUTTON_AIR_STRIKE,
+            'hover_color': COLOR_BUTTON_AIR_STRIKE_HOVER,
+            'text_color': COLOR_WHITE
+        }
     
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -91,6 +129,8 @@ class GameScreen:
         if self._is_placement_phase():
             self._handle_ship_placement(mouse_pos)
         elif self._is_battle_phase_my_turn():
+            if not self.bomb_attack_mode and not self.air_strike_mode and self._check_special_attack_buttons(mouse_pos):
+                return
             self._handle_battle_shot(mouse_pos)
             
     def _is_placement_phase(self) -> bool:
@@ -99,6 +139,17 @@ class GameScreen:
                
     def _is_battle_phase_my_turn(self) -> bool:
         return self.game_phase == GAME_PHASE_BATTLE and self.my_turn
+        
+    def _check_special_attack_buttons(self, mouse_pos: Tuple[int, int]) -> bool:
+        if hasattr(self, 'bomb_button') and self.bomb_button['rect'].collidepoint(mouse_pos) and self.bombs_available > 0:
+            self.bomb_attack_mode = True
+            self.air_strike_mode = False
+            return True
+        elif hasattr(self, 'air_strike_button') and self.air_strike_button['rect'].collidepoint(mouse_pos) and self.air_strikes_available > 0:
+            self.air_strike_mode = True
+            self.bomb_attack_mode = False
+            return True
+        return False
         
     def _handle_ship_placement(self, mouse_pos: Tuple[int, int]) -> None:
         cell = self.my_board.get_cell_from_mouse(mouse_pos)
@@ -111,22 +162,92 @@ class GameScreen:
         self.current_ship_index += 1
         if self.current_ship_index >= len(self.ships_to_place):
             self.game_phase = GAME_PHASE_WAITING_BATTLE
+            self._setup_special_attack_buttons()
             self.send_ships_to_server()
             
     def _handle_battle_shot(self, mouse_pos: Tuple[int, int]) -> None:
-        try:
+            
             cell = self.enemy_board.get_cell_from_mouse(mouse_pos)
-            if self._can_shoot_at_cell(cell):
-                if self.loop:
-                    self.loop.create_task(self.network_manager.make_shot(cell[0], cell[1]))
-                self.my_turn = False
-        except Exception:
-            pass
+           
+            if cell:
+                if self.bomb_attack_mode:
+                    self._execute_bomb_attack(cell[0], cell[1])
+                elif self.air_strike_mode:
+                    self._execute_air_strike(cell[0], cell[1])
+                else:                  
+                    self._execute_single_shot(cell[0], cell[1])
+
             
     def _can_shoot_at_cell(self, cell: Optional[Tuple[int, int]]) -> bool:
         return (cell is not None and 
                cell not in self.enemy_board.shots and 
                self.network_manager is not None)
+               
+    def _execute_bomb_attack(self, center_x: int, center_y: int) -> None:
+        bomb_targets = self._generate_bomb_targets(center_x, center_y)
+
+        if bomb_targets:
+            self.loop.create_task(self._send_bomb_attack_async(bomb_targets))
+            self.bomb_attack_mode = False
+            self.bombs_available -= 1
+    
+    def _execute_air_strike(self, center_x: int, center_y: int) -> None:
+        air_strike_targets = self._generate_air_strike_targets(center_x, center_y)
+        
+        if air_strike_targets:
+            self.loop.create_task(self._send_air_strike_async(air_strike_targets))
+            self.air_strike_mode = False
+            self.air_strikes_available -= 1
+    
+    async def _send_bomb_attack_async(self, bomb_targets: List[Tuple[int, int]]) -> None:
+        try:
+            success = await self.network_manager.make_bomb_attack(bomb_targets)
+            if not success:
+                pass
+        except Exception as e:
+            pass
+    
+    async def _send_air_strike_async(self, air_strike_targets: List[Tuple[int, int]]) -> None:
+        try:
+            success = await self.network_manager.make_air_strike(air_strike_targets)
+            if not success:
+                pass
+        except Exception as e:
+            pass
+
+            
+    def _execute_single_shot(self, x: int, y: int) -> None:
+        if self._can_shoot_at_cell((x, y)) and self.loop:
+            self.loop.create_task(self.network_manager.make_shot(x, y))
+
+            
+    def _generate_bomb_targets(self, center_x: int, center_y: int) -> List[Tuple[int, int]]:
+        targets = []
+        
+        for dx in range(BOMB_ATTACK_START_OFFSET, BOMB_ATTACK_AREA_SIZE):
+            for dy in range(BOMB_ATTACK_START_OFFSET, BOMB_ATTACK_AREA_SIZE):
+                target_x = center_x + dx
+                target_y = center_y + dy
+                
+                if self._is_within_board_bounds(target_x, target_y):
+                    targets.append((target_x, target_y))
+
+        return targets
+    
+    def _generate_air_strike_targets(self, center_x: int, center_y: int) -> List[Tuple[int, int]]:
+        targets = []
+        start_x = center_x - AIR_STRIKE_CENTER_OFFSET
+        for i in range(AIR_STRIKE_WIDTH):
+            target_x = start_x + i
+            target_y = center_y
+            
+            if self._is_within_board_bounds(target_x, target_y):
+                targets.append((target_x, target_y))
+        
+        return targets
+        
+    def _is_within_board_bounds(self, x: int, y: int) -> bool:
+        return GRID_INIT <= x < GRID_SIZE and GRID_INIT <= y < GRID_SIZE
     
     def handle_right_click(self, mouse_pos: Tuple[int, int]) -> None:
         self.ship_horizontal = not self.ship_horizontal
@@ -206,6 +327,7 @@ class GameScreen:
         self.draw_info_panel()
         self._draw_status_text()
         self._draw_additional_info()
+        self._draw_special_attack_buttons()
         
     def _draw_status_text(self) -> None:
         status_text = self._get_status_text()
@@ -251,6 +373,46 @@ class GameScreen:
         center_x = self.width // GAME_SCREEN_DIVISION_FACTOR
         ships_rect = ships_surface.get_rect(center=(center_x, self.height - 45))
         self.screen.blit(ships_surface, ships_rect)
+        
+    def _calculate_bomb_button_x(self) -> int:
+        my_board_center = self.start_x + self.board_size // GAME_SCREEN_DIVISION_FACTOR
+        return my_board_center - SPECIAL_ATTACK_BUTTON_WIDTH - SPECIAL_ATTACK_BUTTON_MARGIN // GAME_SCREEN_DIVISION_FACTOR
+        
+    def _calculate_air_strike_button_x(self) -> int:
+        my_board_center = self.start_x + self.board_size // GAME_SCREEN_DIVISION_FACTOR
+        return my_board_center + SPECIAL_ATTACK_BUTTON_MARGIN // GAME_SCREEN_DIVISION_FACTOR
+        
+    def _calculate_special_buttons_y(self) -> int:
+        return self.board_y + self.board_size + SPECIAL_ATTACK_BUTTON_Y_OFFSET
+        
+    def _draw_special_attack_buttons(self) -> None:
+        if (self.game_phase == GAME_PHASE_WAITING_BATTLE or 
+            self.game_phase == GAME_PHASE_BATTLE):
+            
+            mouse_pos = pygame.mouse.get_pos()
+            button_font = pygame.font.Font(None, FONT_SIZE_SMALL)
+
+            bomb_color = COLOR_BUTTON_BOMB if self.bombs_available > 0 else (128, 128, 128)
+            bomb_hover_color = COLOR_BUTTON_BOMB_HOVER if self.bombs_available > 0 else (128, 128, 128)
+            
+            air_strike_color = COLOR_BUTTON_AIR_STRIKE if self.air_strikes_available > 0 else (128, 128, 128)
+            air_strike_hover_color = COLOR_BUTTON_AIR_STRIKE_HOVER if self.air_strikes_available > 0 else (128, 128, 128)
+            
+            self._draw_attack_button(self.bomb_button, bomb_color, bomb_hover_color, mouse_pos, button_font)
+            self._draw_attack_button(self.air_strike_button, air_strike_color, air_strike_hover_color, mouse_pos, button_font)
+            
+    def _draw_attack_button(self, button: Dict[str, Any], normal_color: Tuple[int, int, int], 
+                           hover_color: Tuple[int, int, int], mouse_pos: Tuple[int, int], 
+                           button_font: pygame.font.Font) -> None:
+        
+        button_color = hover_color if button['rect'].collidepoint(mouse_pos) else normal_color
+        
+        pygame.draw.rect(self.screen, button_color, button['rect'])
+        pygame.draw.rect(self.screen, COLOR_WHITE, button['rect'], MENU_BUTTON_BORDER_WIDTH)
+        
+        button_text = button_font.render(button['text'], True, COLOR_WHITE)
+        button_text_rect = button_text.get_rect(center=button['rect'].center)
+        self.screen.blit(button_text, button_text_rect)
 
     
     def draw_ocean_background(self) -> None:
@@ -452,50 +614,64 @@ class GameScreen:
         if not data:
             return
             
-        x, y = data.get('x'), data.get('y')
-        result = data.get('result')
-        shooter = data.get('shooter')
-        ship_info = data.get('ship_info')
-        
-        if x is None or y is None or not result or not shooter:
+        x, y, result, shooter, ship_info = self._extract_shot_data(data)
+        if not self._validate_shot_data(x, y, result, shooter):
             return
         
-        sunk_ship_name = None
-        if result == 'sunk' and ship_info:
-            sunk_ship_name = ship_info.get('name')
-            ship_size = ship_info.get('size')
-            ship_positions = ship_info.get('positions', [])
-
+        self._play_shot_sound(result)
+        
+        if shooter == self.network_manager.player_id:
+            self._handle_my_shot_result(x, y, result, ship_info)
+        else:
+            self._handle_opponent_shot_result(x, y, result)
+    
+    def _extract_shot_data(self, data):
+        return (
+            data.get('x'), 
+            data.get('y'),
+            data.get('result'),
+            data.get('shooter'),
+            data.get('ship_info')
+        )
+    
+    def _validate_shot_data(self, x, y, result, shooter):
+        return x is not None and y is not None and result and shooter
+    
+    def _play_shot_sound(self, result):
         if result == 'hit' or result == 'sunk':
             self.play_missile_sound()
         elif result == 'miss':
             self.play_water_splash_sound()
+    
+    def _handle_my_shot_result(self, x, y, result, ship_info):
+        self.enemy_board.shots[(x, y)] = result
         
-        if shooter == self.network_manager.player_id:
-            self.enemy_board.shots[(x, y)] = result
+        if result == 'sunk' and ship_info:
+            self._process_enemy_ship_sunk(ship_info)
+    
+    def _process_enemy_ship_sunk(self, ship_info):
+        ship_name = ship_info.get('name')
+        ship_positions = ship_info.get('positions', [])
+        
+        if ship_name:
+            self.enemy_sunk_ships.append(ship_name)
             
-            if result == 'sunk' and sunk_ship_name and ship_info:
-                self.enemy_sunk_ships.append(sunk_ship_name)
-
-                ship_positions = ship_info.get('positions', [])
-                for pos in ship_positions:
-                    self.enemy_sunk_ships_info[tuple(pos)] = sunk_ship_name
-
-                self.enemy_board.mark_enemy_ship_sunk(ship_info, ship_positions)
-            
-            if result == 'miss':
-                self.my_turn = False
-            
-        else:
-            self.my_board.shots[(x, y)] = result
-            
-            if result == 'hit' or result == 'sunk':
-                for ship in self.my_board.ships:
-                    if (x, y) in ship.positions:
-                        ship.hit(x, y)
-                        if ship.sunk and result == 'sunk':
-                            pass
-                        break
+            for pos in ship_positions:
+                self.enemy_sunk_ships_info[tuple(pos)] = ship_name
+                
+            self.enemy_board.mark_enemy_ship_sunk(ship_info, ship_positions)
+    
+    def _handle_opponent_shot_result(self, x, y, result):
+        self.my_board.shots[(x, y)] = result
+        
+        if result == 'hit' or result == 'sunk':
+            self._update_my_ship_hit(x, y, result)
+    
+    def _update_my_ship_hit(self, x, y, result):
+        for ship in self.my_board.ships:
+            if (x, y) in ship.positions:
+                ship.hit(x, y)
+                break
     
     def set_my_turn(self, is_my_turn):
         try:
@@ -541,6 +717,8 @@ class GameScreen:
         self.my_turn = False
         self.ships_to_place = [5, 4, 3, 3, 2]
         self.current_ship_index = 0
+        self.bombs_available = AVAILABLE_BOMBS
+        self.air_strikes_available = AVAILABLE_AIR_STRIKES
 
         self.enemy_sunk_ships = []
         self.enemy_sunk_ships_info = {}

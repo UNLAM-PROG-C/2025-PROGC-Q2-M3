@@ -103,6 +103,8 @@ MESSAGE_TYPES = {
     'ERROR': 'error',
     'PLACE_SHIPS': 'place_ships',
     'SHOT': 'shot',
+    'BOMB_ATTACK': 'bomb_attack',
+    'AIR_STRIKE': 'air_strike',
     'START_GAME': 'start_game'
 }
 NETWORK_LOG_MESSAGES = {
@@ -162,3 +164,6 @@ GAME_STATE_WAITING_PLAYERS = "waiting_players"
 GAME_STATE_PLACEMENT = "placement"
 GAME_STATE_BATTLE = "battle"
 GAME_STATE_FINISHED = "finished"
+
+FIRST_COORDINATE = 0
+SECOND_COORDINATE = 1

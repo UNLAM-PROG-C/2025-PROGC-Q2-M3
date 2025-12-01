@@ -199,6 +199,8 @@ class BattleshipServer:
         message_handlers = {
             'place_ships': lambda: self.handle_place_ships(player, data),
             'shot': lambda: self.handle_shot(player_id, data),
+            'bomb_attack': lambda: self.handle_bomb_attack(player_id, data),
+            'air_strike': lambda: self.handle_air_strike(player_id, data),
             'start_game': lambda: self.handle_start_game()
         }
         
@@ -235,20 +237,66 @@ class BattleshipServer:
         if players_ready:
             await self.start_battle_phase()
 
+    async def handle_bomb_attack(self, shooter_id: str, data: Dict[str, Any]) -> None:
+        if not self._validate_shot_conditions(shooter_id):
+            return
+            
+        targets = data.get('targets', [])
+        opponent_id = self._find_opponent_id(shooter_id)
+        bomb_results = []
+        for target in targets:
+            x, y = target[FIRST_COORDINATE], target[SECOND_COORDINATE]
+            if self._validate_shot_coordinates(x, y):
+                shot_result = await self._process_shot_result(shooter_id, opponent_id, x, y)
+                if shot_result is None:
+                    return
+                
+                bomb_results.append(shot_result)
+        self.current_turn = opponent_id
+        await self.broadcast_game_state()
+
+    async def handle_air_strike(self, shooter_id: str, data: Dict[str, Any]) -> None:
+        if not self._validate_shot_conditions(shooter_id):
+            return
+            
+        targets = data.get('targets', [])
+        opponent_id = self._find_opponent_id(shooter_id)
+        air_strike_results = []
+        for target in targets:
+            if len(target) >= 2:
+                x, y = target[FIRST_COORDINATE], target[SECOND_COORDINATE]
+                if self._validate_shot_coordinates(x, y):
+                    shot_result = await self._process_shot_result(shooter_id, opponent_id, x, y)
+                    
+                    if shot_result is None:
+                        return
+                    
+                    air_strike_results.append(shot_result)
+        self.current_turn = opponent_id
+        await self.broadcast_game_state()
+
     async def handle_shot(self, shooter_id: str, data: Dict[str, Any]) -> None:
         if not self._validate_shot_conditions(shooter_id):
             return
             
         x, y = data.get('x'), data.get('y')
-        
         if not self._validate_shot_coordinates(x, y):
             return
         
         opponent_id = self._find_opponent_id(shooter_id)
         if not opponent_id:
             return
-            
-        await self._process_shot_result(shooter_id, opponent_id, x, y)
+ 
+        shot_result = await self._process_shot_result(shooter_id, opponent_id, x, y)
+        
+        if shot_result is None:
+            return
+        
+        should_change_turn = shot_result == SHOT_RESULT_MISS
+        
+        if should_change_turn:
+            self.current_turn = opponent_id
+        await self.broadcast_game_state()
         
     def _validate_shot_conditions(self, shooter_id: str) -> bool:
         if self.game_state != GameState.BATTLE_PHASE:
@@ -265,7 +313,7 @@ class BattleshipServer:
     def _validate_shot_coordinates(self, x: Any, y: Any) -> bool:
         return isinstance(x, int) and isinstance(y, int)
         
-    async def _process_shot_result(self, shooter_id: str, opponent_id: str, x: int, y: int) -> None:
+    async def _process_shot_result(self, shooter_id: str, opponent_id: str, x: int, y: int) -> Optional[str]:
         opponent = self.players[opponent_id]
         shot_result = opponent.receive_shot(x, y)
         result = shot_result['result']
@@ -276,8 +324,9 @@ class BattleshipServer:
         
         if opponent.all_ships_sunk():
             await self.end_game(shooter_id)
-        else:
-            await self._handle_turn_change(result, opponent_id)
+            return None
+            
+        return result
             
     def _create_shot_data(self, x: int, y: int, result: str, shooter_id: str, 
                          opponent_id: str, shot_result: Dict[str, Any]) -> Dict[str, Any]:

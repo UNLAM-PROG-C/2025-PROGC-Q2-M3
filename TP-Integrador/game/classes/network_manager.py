@@ -225,6 +225,12 @@ class NetworkManager:
     async def make_shot(self, x: int, y: int) -> bool:
         return await self.send_message(MESSAGE_TYPES['SHOT'], {'x': x, 'y': y})
     
+    async def make_bomb_attack(self, targets: list) -> bool:
+        return await self.send_message(MESSAGE_TYPES['BOMB_ATTACK'], {'targets': targets})
+    
+    async def make_air_strike(self, targets: list) -> bool:
+        return await self.send_message(MESSAGE_TYPES['AIR_STRIKE'], {'targets': targets})
+    
     async def start_game(self) -> bool:
         if not self._validate_connection():
             return False

@@ -9,10 +9,7 @@ from ship import Ship
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from constants import *
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from classes.enums import MessageType
-
- 
 
 class Player:
     
@@ -20,7 +17,6 @@ class Player:
         self.player_id = player_id
         self.writer = writer
         self.ships_placed = False
-        self.ready = False
         self.grid = self._initialize_grid()
         self.ships = []
         
@@ -34,7 +30,7 @@ class Player:
             return True
         except (ConnectionResetError, BrokenPipeError):
             return False
-        except Exception as e:
+        except Exception:
             return False
             
     def _create_message(self, message_type: MessageType, data: Optional[Any]) -> str:
@@ -53,8 +49,7 @@ class Player:
         
         if valid_positions:
             self._create_and_add_ship(valid_positions)
-        
-            
+             
     def _validate_ship_positions(self, positions: List[tuple]) -> List[tuple]:
         valid_positions = []
         for x, y in positions:
@@ -76,6 +71,7 @@ class Player:
             if ship.contains_position(x, y):
                 return ship
         return None
+    
     def receive_shot(self, x: int, y: int) -> Dict[str, Any]:
         if not self._is_valid_position(x, y):
             return {'result': SHOT_RESULT_MISS}
@@ -117,8 +113,19 @@ class Player:
             }
         }
         
-    def _process_already_hit(self, x: int, y: int) -> Dict[str, str]:
-        return {'result': SHOT_RESULT_MISS}
+    def _process_already_hit(self, x: int, y: int) -> Dict[str, Any]:
+        current_cell = self.grid[y][x]
+        
+        if current_cell == CELL_HIT:
+            ship = self.find_ship_containing(x, y)
+            if ship and ship.is_sunk():
+                return self._create_sunk_ship_result(ship)
+            else:
+                return {'result': SHOT_RESULT_HIT}
+        elif current_cell == CELL_WATER_HIT:
+            return {'result': SHOT_RESULT_MISS}
+        else:
+            return {'result': SHOT_RESULT_MISS}
     
     def all_ships_sunk(self) -> bool:
         if not self.ships:
