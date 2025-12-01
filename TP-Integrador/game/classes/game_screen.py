@@ -18,7 +18,9 @@ from constants import (SHIP_SIZES, FONT_SIZE_NORMAL, COLOR_WHITE, GAME_TITLE_SPA
                       COLOR_BUTTON_AIR_STRIKE, COLOR_BUTTON_AIR_STRIKE_HOVER, FONT_SIZE_SMALL,
                       MENU_BUTTON_BORDER_WIDTH, AVAILABLE_BOMBS, AVAILABLE_AIR_STRIKES,
                       BOMB_ATTACK_AREA_SIZE, BOMB_ATTACK_START_OFFSET, AIR_STRIKE_WIDTH, AIR_STRIKE_CENTER_OFFSET,
-                      GRID_INIT, GRID_SIZE)
+                      GRID_INIT, GRID_SIZE, BUTTON_SELECTED_EXPANSION, BUTTON_SELECTED_EXPANSION_TOTAL,
+                      COLOR_BUTTON_SELECTED, COLOR_BUTTON_SELECTED_BORDER, BUTTON_SELECTED_BORDER_WIDTH,
+                      COLOR_BUTTON_SELECTED_TEXT)
 from .game_board import GameBoard
 
 class GameScreen:
@@ -91,7 +93,7 @@ class GameScreen:
         
         self.bomb_button = {
             'rect': pygame.Rect(button_x, button_y, SPECIAL_ATTACK_BUTTON_WIDTH, SPECIAL_ATTACK_BUTTON_HEIGHT),
-            'text': GAME_TEXT['BOMB_BUTTON'],
+            'text': f"{GAME_TEXT['BOMB_BUTTON']} {self.bombs_available}/{AVAILABLE_BOMBS}",
             'color': COLOR_BUTTON_BOMB,
             'hover_color': COLOR_BUTTON_BOMB_HOVER,
             'text_color': COLOR_WHITE
@@ -103,11 +105,18 @@ class GameScreen:
         
         self.air_strike_button = {
             'rect': pygame.Rect(button_x, button_y, SPECIAL_ATTACK_BUTTON_WIDTH, SPECIAL_ATTACK_BUTTON_HEIGHT),
-            'text': GAME_TEXT['AIR_STRIKE_BUTTON'],
+            'text': f"{GAME_TEXT['AIR_STRIKE_BUTTON']} {self.air_strikes_available}/{AVAILABLE_AIR_STRIKES}",
             'color': COLOR_BUTTON_AIR_STRIKE,
             'hover_color': COLOR_BUTTON_AIR_STRIKE_HOVER,
             'text_color': COLOR_WHITE
         }
+    
+    def _update_attack_buttons_text(self) -> None:
+        """Actualiza el texto de los botones con los contadores actuales de munición"""
+        if hasattr(self, 'bomb_button'):
+            self.bomb_button['text'] = f"{GAME_TEXT['BOMB_BUTTON']} {self.bombs_available}/{AVAILABLE_BOMBS}"
+        if hasattr(self, 'air_strike_button'):
+            self.air_strike_button['text'] = f"{GAME_TEXT['AIR_STRIKE_BUTTON']} {self.air_strikes_available}/{AVAILABLE_AIR_STRIKES}"
     
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -129,7 +138,7 @@ class GameScreen:
         if self._is_placement_phase():
             self._handle_ship_placement(mouse_pos)
         elif self._is_battle_phase_my_turn():
-            if not self.bomb_attack_mode and not self.air_strike_mode and self._check_special_attack_buttons(mouse_pos):
+            if self._check_special_attack_buttons(mouse_pos):
                 return
             self._handle_battle_shot(mouse_pos)
             
@@ -142,12 +151,18 @@ class GameScreen:
         
     def _check_special_attack_buttons(self, mouse_pos: Tuple[int, int]) -> bool:
         if hasattr(self, 'bomb_button') and self.bomb_button['rect'].collidepoint(mouse_pos) and self.bombs_available > 0:
-            self.bomb_attack_mode = True
-            self.air_strike_mode = False
+            if self.bomb_attack_mode:
+                self.bomb_attack_mode = False
+            else:
+                self.bomb_attack_mode = True
+                self.air_strike_mode = False
             return True
         elif hasattr(self, 'air_strike_button') and self.air_strike_button['rect'].collidepoint(mouse_pos) and self.air_strikes_available > 0:
-            self.air_strike_mode = True
-            self.bomb_attack_mode = False
+            if self.air_strike_mode:
+                self.air_strike_mode = False
+            else:
+                self.air_strike_mode = True
+                self.bomb_attack_mode = False
             return True
         return False
         
@@ -190,6 +205,7 @@ class GameScreen:
             self.loop.create_task(self._send_bomb_attack_async(bomb_targets))
             self.bomb_attack_mode = False
             self.bombs_available -= 1
+            self._update_attack_buttons_text()
     
     def _execute_air_strike(self, center_x: int, center_y: int) -> None:
         air_strike_targets = self._generate_air_strike_targets(center_x, center_y)
@@ -198,6 +214,7 @@ class GameScreen:
             self.loop.create_task(self._send_air_strike_async(air_strike_targets))
             self.air_strike_mode = False
             self.air_strikes_available -= 1
+            self._update_attack_buttons_text()
     
     async def _send_bomb_attack_async(self, bomb_targets: List[Tuple[int, int]]) -> None:
         try:
@@ -400,19 +417,49 @@ class GameScreen:
             
             self._draw_attack_button(self.bomb_button, bomb_color, bomb_hover_color, mouse_pos, button_font)
             self._draw_attack_button(self.air_strike_button, air_strike_color, air_strike_hover_color, mouse_pos, button_font)
+    
+    def _is_button_attack_selected(self, button: Dict[str, Any]) -> bool:
+        is_bomb_button = GAME_TEXT['BOMB_BUTTON'] in button['text']
+        is_air_strike_button = GAME_TEXT['AIR_STRIKE_BUTTON'] in button['text']
+        return (is_bomb_button and self.bomb_attack_mode) or (is_air_strike_button and self.air_strike_mode)
+    
+    def _get_button_style(self, button: Dict[str, Any], is_selected: bool, normal_color: Tuple[int, int, int],
+                         hover_color: Tuple[int, int, int], mouse_pos: Tuple[int, int]) -> Tuple[pygame.Rect, Tuple[int, int, int], Tuple[int, int, int], int]:
+        if is_selected:
+            expanded_rect = pygame.Rect(
+                button['rect'].x - BUTTON_SELECTED_EXPANSION, 
+                button['rect'].y - BUTTON_SELECTED_EXPANSION,
+                button['rect'].width + BUTTON_SELECTED_EXPANSION_TOTAL, 
+                button['rect'].height + BUTTON_SELECTED_EXPANSION_TOTAL
+            )
+            return expanded_rect, COLOR_BUTTON_SELECTED, COLOR_BUTTON_SELECTED_BORDER, BUTTON_SELECTED_BORDER_WIDTH
+        else:
+            button_color = hover_color if button['rect'].collidepoint(mouse_pos) else normal_color
+            return button['rect'], button_color, COLOR_WHITE, MENU_BUTTON_BORDER_WIDTH
+    
+    def _render_button_graphics(self, rect: pygame.Rect, button_color: Tuple[int, int, int],
+                               border_color: Tuple[int, int, int], border_width: int) -> None:
+        pygame.draw.rect(self.screen, button_color, rect)
+        pygame.draw.rect(self.screen, border_color, rect, border_width)
+    
+    def _render_button_text(self, button: Dict[str, Any], button_font: pygame.font.Font,
+                           rect: pygame.Rect, is_selected: bool) -> None:
+        text_color = COLOR_BUTTON_SELECTED_TEXT if is_selected else COLOR_WHITE
+        button_text = button_font.render(button['text'], True, text_color)
+        button_text_rect = button_text.get_rect(center=rect.center)
+        self.screen.blit(button_text, button_text_rect)
             
     def _draw_attack_button(self, button: Dict[str, Any], normal_color: Tuple[int, int, int], 
                            hover_color: Tuple[int, int, int], mouse_pos: Tuple[int, int], 
                            button_font: pygame.font.Font) -> None:
         
-        button_color = hover_color if button['rect'].collidepoint(mouse_pos) else normal_color
+        is_selected = self._is_button_attack_selected(button)
+        expanded_rect, button_color, border_color, border_width = self._get_button_style(
+            button, is_selected, normal_color, hover_color, mouse_pos
+        )
         
-        pygame.draw.rect(self.screen, button_color, button['rect'])
-        pygame.draw.rect(self.screen, COLOR_WHITE, button['rect'], MENU_BUTTON_BORDER_WIDTH)
-        
-        button_text = button_font.render(button['text'], True, COLOR_WHITE)
-        button_text_rect = button_text.get_rect(center=button['rect'].center)
-        self.screen.blit(button_text, button_text_rect)
+        self._render_button_graphics(expanded_rect, button_color, border_color, border_width)
+        self._render_button_text(button, button_font, expanded_rect, is_selected)
 
     
     def draw_ocean_background(self) -> None:
@@ -719,6 +766,7 @@ class GameScreen:
         self.current_ship_index = 0
         self.bombs_available = AVAILABLE_BOMBS
         self.air_strikes_available = AVAILABLE_AIR_STRIKES
+        self._update_attack_buttons_text()
 
         self.enemy_sunk_ships = []
         self.enemy_sunk_ships_info = {}
